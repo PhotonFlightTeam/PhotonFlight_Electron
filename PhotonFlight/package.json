@@ -40,6 +40,7 @@
     "electron-squirrel-startup": "^1.0.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "react-three-quick-measure": "^0.1.1",
     "three": "^0.185.1"
   }
 }
