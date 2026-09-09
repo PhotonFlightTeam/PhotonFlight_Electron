@@ -1,7 +1,7 @@
 import laspy
 
-input_path = "PanHandle.laz"
-output_path = "PanHandle_13_col.laz"
+input_path = input("Enter the path to the LAS 1.4 file: ")
+output_path = input("\nEnter the path to save the LAS 1.3 file: ")
 
 # Read the LAS 1.4 file
 las_in = laspy.read(input_path)

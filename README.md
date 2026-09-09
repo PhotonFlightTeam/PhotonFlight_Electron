@@ -11,3 +11,9 @@ Updates Needed:
 - More options for basic color variations
 - Creation of a measuring tool
 - Portal for interacting with plugins
+
+The JS library for interpreting .las files only supports versions <=1.3; v1.4 files currently need to be converted.  
+To do convert a file, follow this sequence:  
+1. cd into /LasEditor
+2. pip install -r requirements.txt
+3. python convert.py
