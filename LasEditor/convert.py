@@ -22,7 +22,9 @@ las_out.x = las_in.x
 las_out.y = las_in.y
 las_out.z = las_in.z
 las_out.intensity = las_in.intensity
-las_out.classification = las_in.classification
+
+# I don't think classification is necessary and it sometimes messes things up
+#las_out.classification = las_in.classification
 if "red" in list(las_in.point_format.dimension_names):
     las_out.red = las_in.red
 if "green" in list(las_in.point_format.dimension_names):
