@@ -1,13 +1,22 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Canvas } from '@react-three/fiber';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { load } from '@loaders.gl/core';
 import { LASLoader } from '@loaders.gl/las';
+import { applyHeightMapColor } from './color/heightMap';
+import { applySlopeMapColor } from './color/slopeMap';
 import * as THREE from 'three';
-//import { QuickMeasure } from 'react-three-quick-measure'
+import useStore from './useStore';
 
 
-// 1. Point Cloud Renderer Component
+import Box from '@mui/material/Box';
+import InputLabel from '@mui/material/InputLabel';
+import MenuItem from '@mui/material/MenuItem';
+import FormControl from '@mui/material/FormControl';
+import Select from '@mui/material/Select';
+
+
+// Point Cloud Renderer Component
 function PointCloudViewer({ fileUrl, active }) {
   const [pointData, setPointData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -32,22 +41,22 @@ function PointCloudViewer({ fileUrl, active }) {
       }
     }
 
-    if (fileUrl) parseLasFile();
+    parseLasFile();
   }, [fileUrl]);
 
-  // 2. Build the optimized Three.js Buffer Geometry using useMemo
+  // Build the optimized Three.js Buffer Geometry using useMemo
   const geometry = useMemo(() => {
     if (!pointData || !pointData.attributes.POSITION) return null;
 
     const geo = new THREE.BufferGeometry();
     
-    // Extract positions array [x1, y1, z1, x2, y2, z2, ...]
+    // Extract positions array [x1, y1, z1, x2, y2, z2, ...] 
     const positions = pointData.attributes.POSITION.value;
+    useStore.setState({ positions: positions });
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
 
-    // Handle RGB colors if they exist in the point cloud attributes
-    if (pointData.attributes.COLOR_0 && active) {
+    if (pointData.attributes.COLOR_0 && active === 'base') {
       const colors = pointData.attributes.COLOR_0.value;
       // Normalize values if they are 16-bit integers instead of floats (0.0 - 1.0)
       const normalizedColors = pointData.attributes.COLOR_0.type === 5123 
@@ -55,27 +64,16 @@ function PointCloudViewer({ fileUrl, active }) {
         : colors;
         
       geo.setAttribute('color', new THREE.BufferAttribute(normalizedColors, pointData.attributes.COLOR_0.size));
-    }
-    else {
-      // Find minimum and maximum z values for gradient mapping
-      let min = Infinity;
-      let max = -Infinity;
-      for (let i = 2; i < positions.length; i += 3) {
-        min = Math.min(min, positions[i]);
-        max = Math.max(max, positions[i]);
+      useStore.setState({ colors: normalizedColors });
+    } else if (useStore.getState().colors !== null) {
+      // Handle RGB colors if they exist in the point cloud attributes
+      geo.setAttribute('color', new THREE.BufferAttribute(useStore.getState().colors, 3));
+    } else { // If no RGB data or not active default is by slope gradient mapping
+      if (active === 'height') {
+        applyHeightMapColor(geo, positions, rgbMinMax);
+      } else if (active === 'slope') {
+      applySlopeMapColor(geo, positions, rgbMinMax);
       }
-
-
-      // Create a color gradient based on height (z-axis) if no RGB data is present
-      const colors = new Float32Array(positions.length);
-      const heightRange = max - min || 1;
-      for (let i = 0; i < colors.length; i += 3) {
-        const normalizedHeight = (positions[i + 2] - min) / heightRange;
-        colors[i] = rgbMinMax.min[0] + (rgbMinMax.max[0] - rgbMinMax.min[0]) * normalizedHeight;
-        colors[i + 1] = rgbMinMax.min[1] + (rgbMinMax.max[1] - rgbMinMax.min[1]) * normalizedHeight;
-        colors[i + 2] = rgbMinMax.min[2] + (rgbMinMax.max[2] - rgbMinMax.min[2]) * normalizedHeight;
-      }
-      geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     }
 
     // Center the geometry so it initializes directly in front of the camera bounds
@@ -100,15 +98,66 @@ function PointCloudViewer({ fileUrl, active }) {
   );
 }
 
-// 3. Parent Wrapper providing the WebGL Viewport Context
+function ViewControls({ view = 'start' }) {
+  const { camera } = useThree();
+  const controlsRef = useRef();
+
+  // Sets the position and up direction of the camera
+  const setView = ({ position, direction }) => {
+    if (!controlsRef.current) return;
+
+    // Reset the target focus to the center of the scene
+    controlsRef.current.target.set(0, 0, 0);
+
+    // Adjust the position of the camera
+    camera.position.set(position[0], position[1], position[2]);
+
+    // Adjust the cameras up vector (direction of top of screen)
+    camera.up.set(direction[0], direction[1], direction[2]);
+
+    // Force OrbitControls to register the new positioning
+    controlsRef.current.update();
+  };
+
+  return (
+    <>
+      <OrbitControls ref={controlsRef} makeDefault enableDamping/>
+      {/* Direction must be perpendicular to position, if not it sets it to default*/}
+      {view === 'start' && setView({ position: [0, 0, 50], direction: [0, 1, 0] })}
+      {view === 'topDown' && setView({ position: [0, 0, 500], direction: [0, 1, 0] })}
+      {view === 'bottomUp' && setView({ position: [0, 0, -500], direction: [0, -1, 0] })}
+      {view === 'front' && setView({ position: [500, 0, 0], direction: [0, 0, 1] })}
+      {view === 'back' && setView({ position: [-500, 0, 0], direction: [0, 0, 1] })}
+      {view === 'right' && setView({ position: [0, 500, 0], direction: [0, 0, 1] })}
+      {view === 'left' && setView({ position: [0, -500, 0], direction: [0, 0, 1] })}
+    </>
+    
+  );
+}
+
+
+// Parent Wrapper providing the WebGL Viewport Context
 export default function LasViewer({ fileUrl }) {
-  const [isActive, setIsActive] = useState(false);
+  const [active, setActive] = useState('base');
+  const [view, setView] = useState('start');
   const [key, setKey] = useState(0);
 
-  const toggleActive = () => {
-    setIsActive(!isActive);
-    setKey(prevKey => prevKey + 1);
+  const handleChange = (event) => {
+    setActive(event.target.value);
+    useStore.setState({ colors: null }); // Reset colors to trigger re-render
+    setKey(prevKey => prevKey + 1); // Force re-render of PointCloudViewer
   };
+
+  // const toggleActiveColor = (activeColor) => {
+  //   setIsActive(activeColor);
+  //   useStore.setState({ colors: null }); // Reset colors to trigger re-render
+  //   setKey(prevKey => prevKey + 1); // Force re-render of PointCloudViewer
+  // };
+
+  const setNewView = (newView) => {
+    setView(newView);
+    setKey(prevKey => prevKey + 1); // Force re-render of PointCloudViewer
+  }
 
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#dbd7d7' }}>
@@ -117,17 +166,122 @@ export default function LasViewer({ fileUrl }) {
         <pointLight position={[10, 10, 10]} />
         
     
-        <PointCloudViewer key={key} fileUrl={fileUrl} active={isActive} />
+        <PointCloudViewer key={key} fileUrl={fileUrl} active={active} />
       
-        
-        
         {/* Allows users to rotate, pan, and zoom around the point map smoothly */}
-        <OrbitControls makeDefault enableDamping />
+        <ViewControls view={view} />
 
-        
       </Canvas>
       {/* Button that controls manner in which points are colored */}
-      <button style={{ position: 'absolute', bottom: '10px', left: '5%' }} onClick={toggleActive}>Toggle View</button>
+      <Box sx={{ minWidth: 120, position: 'absolute', bottom: '10px', left: '5%', zIndex: 10 }}>
+        <FormControl fullWidth>
+          <InputLabel id="View Color Selection">View Color</InputLabel>
+          <Select
+            labelId="View Label"
+            id="View Selection"
+            value={active}
+            label="View"
+            onChange={handleChange}
+          >
+            <MenuItem value={'base'}>Base</MenuItem>
+            <MenuItem value={'height'}>Height</MenuItem>
+            <MenuItem value={'slope'}>Slope</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
+      {/* Buttons for setting orientation of camera FIXME- CSS/react component needs changed*/}
+      <div style={{ position: 'absolute', top: '10px', left: '5%', zIndex: 10 }}>
+          <button onClick={() => setNewView('topDown')}
+            style={{
+              padding: '8px 16px',
+              background: '#ffffff',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            Top-Down View
+          </button>
+
+          <button onClick={() => setNewView('bottomUp')}
+            style={{
+              padding: '8px 16px',
+              background: '#ffffff',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            Bottom-Up View
+          </button>
+
+          <button onClick={() => setNewView('start')}
+            style={{
+              padding: '8px 16px',
+              background: '#ffffff',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            Reset View
+          </button>
+
+          <button onClick={() => setNewView('front')}
+            style={{
+              padding: '8px 16px',
+              background: '#ffffff',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            Front View
+          </button>
+
+          <button onClick={() => setNewView('back')}
+            style={{
+              padding: '8px 16px',
+              background: '#ffffff',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            Back View
+          </button>
+
+          <button onClick={() => setNewView('left')}
+            style={{
+              padding: '8px 16px',
+              background: '#ffffff',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            Left View
+          </button>
+
+          <button onClick={() => setNewView('right')}
+            style={{
+              padding: '8px 16px',
+              background: '#ffffff',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            Right View
+          </button>
+        </div>
     </div>
   );
 }
