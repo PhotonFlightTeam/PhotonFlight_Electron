@@ -1,35 +1,33 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { OrbitControls, GizmoHelper, GizmoViewport, GizmoViewcube } from '@react-three/drei';
 import { Canvas, useThree } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
 import { load } from '@loaders.gl/core';
 import { LASLoader } from '@loaders.gl/las';
 import { applyHeightMapColor } from './color/heightMap';
 import { applySlopeMapColor } from './color/slopeMap';
 import * as THREE from 'three';
 import useStore from './useStore';
-
-
+import Slider from '@mui/material/Slider';
 import Box from '@mui/material/Box';
 import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import Select from '@mui/material/Select';
 
-
 // Point Cloud Renderer Component
 function PointCloudViewer({ fileUrl, active }) {
   const [pointData, setPointData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  // min is the value value at the minimum point, and max is the value at the maximum point. 
-  // Not the minimum and maximum values of the RGB color space
+  const [error, setError] = useState(null); 
+	// min is the value at the minimum point, max is the val at maximum point
+	// NOT to be confused with min and max of RGB Color Space
   const [rgbMinMax, setRgbMinMax] = useState({ min: [0,1,0], max: [1,0,0] });
 
   useEffect(() => {
     async function parseLasFile() {
       try {
         setLoading(true);
-        // Load and parse the binary .las/.laz file
+	      //Load and Parse binary .las/.laz file
         const data = await load(fileUrl, LASLoader);
         setPointData(data);
         setError(null);
@@ -44,21 +42,19 @@ function PointCloudViewer({ fileUrl, active }) {
     parseLasFile();
   }, [fileUrl]);
 
-  // Build the optimized Three.js Buffer Geometry using useMemo
+// Build optimized Three.js Buffer Geometry using useMemo
   const geometry = useMemo(() => {
     if (!pointData || !pointData.attributes.POSITION) return null;
 
     const geo = new THREE.BufferGeometry();
-    
-    // Extract positions array [x1, y1, z1, x2, y2, z2, ...] 
+// Extract Positions array [x1, y1, z1, x2, y2, z2, ...]
     const positions = pointData.attributes.POSITION.value;
     useStore.setState({ positions: positions });
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
-
     if (pointData.attributes.COLOR_0 && active === 'base') {
       const colors = pointData.attributes.COLOR_0.value;
-      // Normalize values if they are 16-bit integers instead of floats (0.0 - 1.0)
+ // Normalize values if they are 16-bit integers instead of floats (0.0 - 1.0)
       const normalizedColors = pointData.attributes.COLOR_0.type === 5123 
         ? Float32Array.from(colors, v => v / 65535) 
         : colors;
@@ -66,93 +62,169 @@ function PointCloudViewer({ fileUrl, active }) {
       geo.setAttribute('color', new THREE.BufferAttribute(normalizedColors, pointData.attributes.COLOR_0.size));
       useStore.setState({ colors: normalizedColors });
     } else if (useStore.getState().colors !== null) {
-      // Handle RGB colors if they exist in the point cloud attributes
+	   // Handle RGB colors if they exist in the point cloud attributes
       geo.setAttribute('color', new THREE.BufferAttribute(useStore.getState().colors, 3));
     } else { // If no RGB data or not active default is by slope gradient mapping
       if (active === 'height') {
         applyHeightMapColor(geo, positions, rgbMinMax);
       } else if (active === 'slope') {
-      applySlopeMapColor(geo, positions, rgbMinMax);
+        applySlopeMapColor(geo, positions, rgbMinMax);
       }
     }
-
-    // Center the geometry so it initializes directly in front of the camera bounds
+	   // Center the geometry so it initializes directly in front of the camera bounds
     geo.computeBoundingSphere();
     geo.center();
 
     return geo;
-  }, [pointData]);
+  }, [pointData, active, rgbMinMax]);
 
-  if (loading) return null; // Handle loading status via standard React UI overhead
-  if (error) return null;
-  if (!geometry) return null;
+  if (loading || error || !geometry) return null;  // Handle loading status via standard React UI overhead
 
   return (
     <points geometry={geometry}>
       <pointsMaterial 
-        size={0.05}                      // Adjust thickness based on data density
+        size={0.05} // Adjust thickness based on data density
         vertexColors={!!pointData.attributes.COLOR_0} // Use laser-captured color metrics if available
-        sizeAttenuation={true}           // Near points appear larger than distant points
+        sizeAttenuation={true} // Near points appear larger than distant points
       />
     </points>
   );
 }
 
-function ViewControls({ view = 'start' }) {
+function ViewControls({ view = 'start', zoom, setZoom }) {
   const { camera } = useThree();
   const controlsRef = useRef();
+  const isUpdatingFromSlider = useRef(false);
+  // Physical Display Min/Max
+  const maxDist = 500; // Furthest zoom out
+  const minDist = 1;   // Closest zoom in
+  // Slider Min/Max
+  const maxZoom = 200; // Slider top value
+  const minZoom = 10;  // Slider bottom value
 
-  // Sets the position and up direction of the camera
-  const setView = ({ position, direction }) => {
-    if (!controlsRef.current) return;
+  // Helper math to map physical distance to a 10-200 slider value
+  const distToZoom = (dist) => maxZoom - (((Math.max(minDist, Math.min(dist, maxDist)) - minDist) / (maxDist - minDist)) * (maxZoom - minZoom));
+  const zoomToDist = (z) => minDist + (((maxZoom - Math.max(minZoom, Math.min(z, maxZoom))) / (maxZoom - minZoom)) * (maxDist - minDist));
 
-    // Reset the target focus to the center of the scene
-    controlsRef.current.target.set(0, 0, 0);
+  // Sync Slider to Mouse Wheel (OrbitControls internal change)
+  useEffect(() => {
+    const controls = controlsRef.current;
+    if (!controls) return;
 
-    // Adjust the position of the camera
-    camera.position.set(position[0], position[1], position[2]);
+    const onControlChange = () => {
+      const dist = camera.position.distanceTo(controls.target);
+      setZoom(distToZoom(dist));
+    };
 
-    // Adjust the cameras up vector (direction of top of screen)
-    camera.up.set(direction[0], direction[1], direction[2]);
+    controls.addEventListener('change', onControlChange);
+    return () => controls.removeEventListener('change', onControlChange);
+  }, [camera, setZoom]);
+  //Sync Slider Camera
+  useEffect(() => {
+    const controls = controlsRef.current;
+    if (!controls) return;
 
-    // Force OrbitControls to register the new positioning
-    controlsRef.current.update();
-  };
-
-  return (
-    <>
-      <OrbitControls ref={controlsRef} makeDefault enableDamping/>
-      {/* Direction must be perpendicular to position, if not it sets it to default*/}
-      {view === 'start' && setView({ position: [0, 0, 50], direction: [0, 1, 0] })}
-      {view === 'topDown' && setView({ position: [0, 0, 500], direction: [0, 1, 0] })}
-      {view === 'bottomUp' && setView({ position: [0, 0, -500], direction: [0, -1, 0] })}
-      {view === 'front' && setView({ position: [500, 0, 0], direction: [0, 0, 1] })}
-      {view === 'back' && setView({ position: [-500, 0, 0], direction: [0, 0, 1] })}
-      {view === 'right' && setView({ position: [0, 500, 0], direction: [0, 0, 1] })}
-      {view === 'left' && setView({ position: [0, -500, 0], direction: [0, 0, 1] })}
-    </>
+    const currentDist = camera.position.distanceTo(controls.target);
+    const targetDist = zoomToDist(zoom);
     
-  );
-}
+    // Only move the camera if the slider value differs significantly from current view
+    if (Math.abs(currentDist - targetDist) > 0.5) {
+      const direction = new THREE.Vector3().subVectors(camera.position, controls.target).normalize();
+      if (direction.lengthSq() === 0) direction.set(0, 0, 1);
+      camera.position.copy(controls.target).add(direction.multiplyScalar(targetDist));
+      controls.update();
+    }
+  }, [zoom, camera]);
+  useEffect(() => {
+    const controls = controlsRef.current;
+    if (!controls) return;
 
+    const applyView = (pos, dir) => {
+      controls.target.set(0, 0, 0);
+      camera.position.set(pos[0], pos[1], pos[2]);
+      camera.up.set(dir[0], dir[1], dir[2]);
+      controls.update();
+      // Update the slider to match the new perspective's distance
+      setZoom(distToZoom(camera.position.distanceTo(controls.target)));
+    };
+
+    switch (view) {
+      case 'start': applyView([0, 0, 50], [0, 1, 0]); break;
+      case 'topDown': applyView([0, 0, 500], [0, 1, 0]); break;
+      case 'bottomUp': applyView([0, 0, -500], [0, -1, 0]); break;
+      case 'front': applyView([500, 0, 0], [0, 0, 1]); break;
+      case 'back': applyView([-500, 0, 0], [0, 0, 1]); break;
+      case 'right': applyView([0, 500, 0], [0, 0, 1]); break;
+      case 'left': applyView([0, -500, 0], [0, 0, 1]); break;
+    }
+  }, [view, camera, setZoom]);
+
+  return <OrbitControls ref={controlsRef} makeDefault enableDamping minDistance={minDist} maxDistance={maxDist} />;
+    }
 
 // Parent Wrapper providing the WebGL Viewport Context
-export default function LasViewer({ fileUrl }) {
+export default function LasViewer({ fileUrl: initialFileUrl }) {
   const [active, setActive] = useState('base');
   const [view, setView] = useState('start');
   const [key, setKey] = useState(0);
+  const [fileSource, setFileSource] = useState(initialFileUrl);
+  const [zoom, setZoom] = useState(180);
+
+  useEffect(() => {
+    if (window.electronAPI) {
+      window.electronAPI.onFileImported(async (filePath) => {
+        const buffer = await window.electronAPI.readFile(filePath);
+        if (buffer) {
+          const arrayBuffer = buffer.buffer ? buffer.buffer : buffer;
+          setFileSource(arrayBuffer);
+          useStore.setState({ colors: null, positions: null }); 
+          setKey(prevKey => prevKey + 1); 
+        }
+      });
+
+      window.electronAPI.onFileExported(async (filePath) => {
+        const { positions } = useStore.getState();
+        if (!positions) return;
+
+        const encodedLasData = new Uint8Array(); 
+        await window.electronAPI.saveFile(filePath, encodedLasData);
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
+
+      switch (event.key.toLowerCase()) {
+        case 't': setNewView('topDown'); break;
+        case 'b': setNewView('bottomUp'); break;
+        case 'f': setNewView('front'); break;
+        case 'v': setNewView('back'); break;
+        case 'l': setNewView('left'); break;
+        case 'r': setNewView('right'); break;
+        case ' ': 
+          event.preventDefault(); 
+          setNewView('start'); 
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []); 
 
   const handleChange = (event) => {
-    setActive(event.target.value);
+    setActive(event.target.value); 
     useStore.setState({ colors: null }); // Reset colors to trigger re-render
     setKey(prevKey => prevKey + 1); // Force re-render of PointCloudViewer
   };
-
   // const toggleActiveColor = (activeColor) => {
   //   setIsActive(activeColor);
   //   useStore.setState({ colors: null }); // Reset colors to trigger re-render
   //   setKey(prevKey => prevKey + 1); // Force re-render of PointCloudViewer
   // };
+
 
   const setNewView = (newView) => {
     setView(newView);
@@ -165,123 +237,87 @@ export default function LasViewer({ fileUrl }) {
         <ambientLight intensity={1.5} />
         <pointLight position={[10, 10, 10]} />
         
-    
-        <PointCloudViewer key={key} fileUrl={fileUrl} active={active} />
-      
-        {/* Allows users to rotate, pan, and zoom around the point map smoothly */}
-        <ViewControls view={view} />
+        <PointCloudViewer key={key} fileUrl={fileSource} active={active} />
+        <ViewControls view={view} zoom={zoom} setZoom={setZoom} />
 
+        <GizmoHelper alignment="bottom-left" margin={[80, 80]}>
+          <GizmoViewport axisColors={['#ff3653', '#8adb00', '#2c8fff']} labelColor="white" />
+        </GizmoHelper>
       </Canvas>
-      {/* Button that controls manner in which points are colored */}
-      <Box sx={{ minWidth: 120, position: 'absolute', bottom: '10px', left: '5%', zIndex: 10 }}>
-        <FormControl fullWidth>
-          <InputLabel id="View Color Selection">View Color</InputLabel>
-          <Select
-            labelId="View Label"
-            id="View Selection"
-            value={active}
-            label="View"
-            onChange={handleChange}
-          >
-            <MenuItem value={'base'}>Base</MenuItem>
-            <MenuItem value={'height'}>Height</MenuItem>
-            <MenuItem value={'slope'}>Slope</MenuItem>
-          </Select>
-        </FormControl>
+
+     {/* UI Box Positioning and Styling */}
+	  <Box sx={{ 
+		minWidth: 150, 
+		position: 'absolute', 
+  		top: '20px',
+  		left: '20px',
+  		zIndex: 10,
+  		backgroundColor: 'rgba(255, 255, 255, 0.9)', // Solid backdrop for readability
+  		borderRadius: '8px', // Rounded corners to match standard UI
+  		padding: '5px' // Slight padding around the input
+	  }}>
+	  <FormControl fullWidth>
+	  <InputLabel id="View Color Selection">View Color</InputLabel>
+	  <Select
+	  labelId="View Label"
+	  id="View Selection"
+	  value={active}
+	  label="View Color"
+	  onChange={handleChange}
+	  >
+	  <MenuItem value={'base'}>Base</MenuItem>
+	  <MenuItem value={'height'}>Height</MenuItem>
+	  <MenuItem value={'slope'}>Slope</MenuItem>
+	  </Select>
+	  </FormControl>
+	  </Box>
+    <Box sx={{
+        position: 'absolute',
+        top: '120px',
+        left: '20px',
+        height: 250,
+        zIndex: 10,
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        borderRadius: '8px',
+        padding: '15px 5px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+      }}>
+        <div 
+  onClick={() => setZoom(prev => Math.min(prev + 10, 200))}
+  style={{ marginBottom: '15px', fontWeight: 'bold', color: '#555', cursor: 'pointer', fontSize: '20px', userSelect: 'none' }}
+>
+  +
+</div>
+        <Slider
+          orientation="vertical"
+          value={zoom}
+          min={10}
+          max={200}
+          onChange={(event, newValue) => setZoom(newValue)}
+          aria-label="Camera Zoom"
+        />
+    <div 
+  onClick={() => setZoom(prev => Math.max(prev - 10, 10))}
+  style={{ marginTop: '15px', fontWeight: 'bold', color: '#555', cursor: 'pointer', fontSize: '24px', userSelect: 'none', lineHeight: '10px' }}
+>
+  -
+</div>
       </Box>
-      {/* Buttons for setting orientation of camera FIXME- CSS/react component needs changed*/}
-      <div style={{ position: 'absolute', top: '10px', left: '5%', zIndex: 10 }}>
-          <button onClick={() => setNewView('topDown')}
-            style={{
-              padding: '8px 16px',
-              background: '#ffffff',
-              border: '1px solid #ccc',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: 'bold'
-            }}
-          >
-            Top-Down View
-          </button>
-
-          <button onClick={() => setNewView('bottomUp')}
-            style={{
-              padding: '8px 16px',
-              background: '#ffffff',
-              border: '1px solid #ccc',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: 'bold'
-            }}
-          >
-            Bottom-Up View
-          </button>
-
-          <button onClick={() => setNewView('start')}
-            style={{
-              padding: '8px 16px',
-              background: '#ffffff',
-              border: '1px solid #ccc',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: 'bold'
-            }}
-          >
-            Reset View
-          </button>
-
-          <button onClick={() => setNewView('front')}
-            style={{
-              padding: '8px 16px',
-              background: '#ffffff',
-              border: '1px solid #ccc',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: 'bold'
-            }}
-          >
-            Front View
-          </button>
-
-          <button onClick={() => setNewView('back')}
-            style={{
-              padding: '8px 16px',
-              background: '#ffffff',
-              border: '1px solid #ccc',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: 'bold'
-            }}
-          >
-            Back View
-          </button>
-
-          <button onClick={() => setNewView('left')}
-            style={{
-              padding: '8px 16px',
-              background: '#ffffff',
-              border: '1px solid #ccc',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: 'bold'
-            }}
-          >
-            Left View
-          </button>
-
-          <button onClick={() => setNewView('right')}
-            style={{
-              padding: '8px 16px',
-              background: '#ffffff',
-              border: '1px solid #ccc',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: 'bold'
-            }}
-          >
-            Right View
-          </button>
-        </div>
     </div>
   );
 }
+
+// Extracted button styling 
+const btnStyle = {
+  padding: '8px 16px',
+  background: '#ffffff',
+  border: '1px solid #ccc',
+  borderRadius: '4px',
+  cursor: 'pointer',
+  fontWeight: 'bold',
+  marginRight: '5px',
+  marginBottom: '5px'
+};
