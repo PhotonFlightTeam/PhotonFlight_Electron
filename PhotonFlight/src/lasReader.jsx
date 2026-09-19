@@ -13,6 +13,7 @@ import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import Select from '@mui/material/Select';
+import { breadcrumbsClasses } from '@mui/material/Breadcrumbs';
 
 // Point Cloud Renderer Component
 function PointCloudViewer({ fileUrl, active }) {
@@ -91,13 +92,13 @@ function PointCloudViewer({ fileUrl, active }) {
   );
 }
 
-function ViewControls({ view = 'start', zoom, setZoom }) {
+function ViewControls({ view = 'start', zoom, setZoom, axis = null}) {
   const { camera } = useThree();
   const controlsRef = useRef();
   const isUpdatingFromSlider = useRef(false);
-  // Physical Display Min/Max
-  const maxDist = 500; // Furthest zoom out
-  const minDist = 1;   // Closest zoom in
+
+  const maxDist = 1000; // Maximum distance from camera to target
+  const minDist = 1;  // Minimum distance from camera to target
   // Slider Min/Max
   const maxZoom = 200; // Slider top value
   const minZoom = 10;  // Slider bottom value
@@ -112,13 +113,16 @@ function ViewControls({ view = 'start', zoom, setZoom }) {
     if (!controls) return;
 
     const onControlChange = () => {
+      if (isUpdatingFromSlider.current) return;
+
       const dist = camera.position.distanceTo(controls.target);
-      setZoom(distToZoom(dist));
+      setZoom(() => distToZoom(dist));
     };
 
     controls.addEventListener('change', onControlChange);
     return () => controls.removeEventListener('change', onControlChange);
-  }, [camera, setZoom]);
+  }, [camera, setZoom]); //RIGHT HERE FIXME
+  
   //Sync Slider Camera
   useEffect(() => {
     const controls = controlsRef.current;
@@ -131,10 +135,16 @@ function ViewControls({ view = 'start', zoom, setZoom }) {
     if (Math.abs(currentDist - targetDist) > 0.5) {
       const direction = new THREE.Vector3().subVectors(camera.position, controls.target).normalize();
       if (direction.lengthSq() === 0) direction.set(0, 0, 1);
+
+      isUpdatingFromSlider.current = true;
+
       camera.position.copy(controls.target).add(direction.multiplyScalar(targetDist));
       controls.update();
+
+      isUpdatingFromSlider.current = false;
     }
   }, [zoom, camera]);
+
   useEffect(() => {
     const controls = controlsRef.current;
     if (!controls) return;
@@ -148,6 +158,19 @@ function ViewControls({ view = 'start', zoom, setZoom }) {
       setZoom(distToZoom(camera.position.distanceTo(controls.target)));
     };
 
+    const shift = (pos) => {
+      console.log(pos);
+      camera.position.x += pos[0];
+      camera.position.y += pos[1];
+      camera.position.z += pos[2];
+    };
+
+    const rotate = (dir) => {
+      controls.target.x += dir[0];
+      controls.target.y += dir[1];
+      controls.target.z += dir[2];
+    };
+
     switch (view) {
       case 'start': applyView([0, 0, 50], [0, 1, 0]); break;
       case 'topDown': applyView([0, 0, 500], [0, 1, 0]); break;
@@ -156,16 +179,19 @@ function ViewControls({ view = 'start', zoom, setZoom }) {
       case 'back': applyView([-500, 0, 0], [0, 0, 1]); break;
       case 'right': applyView([0, 500, 0], [0, 0, 1]); break;
       case 'left': applyView([0, -500, 0], [0, 0, 1]); break;
+      case 'shift': shift(axis); break;
+      case 'rotate': rotate(axis); break;
     }
   }, [view, camera, setZoom]);
 
-  return <OrbitControls ref={controlsRef} makeDefault enableDamping minDistance={minDist} maxDistance={maxDist} />;
-    }
+  return <OrbitControls ref={controlsRef} makeDefault enableDamping maxDistance={maxDist} minDistance={minDist}/>;
+}
 
 // Parent Wrapper providing the WebGL Viewport Context
 export default function LasViewer({ fileUrl: initialFileUrl }) {
   const [active, setActive] = useState('base');
   const [view, setView] = useState('start');
+  const [axis, setAxis] = useState(null);
   const [key, setKey] = useState(0);
   const [fileSource, setFileSource] = useState(initialFileUrl);
   const [zoom, setZoom] = useState(180);
@@ -194,42 +220,55 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
 
   useEffect(() => {
     const handleKeyDown = (event) => {
+      console.log(event.key);
       if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
 
       switch (event.key.toLowerCase()) {
-        case 't': setNewView('topDown'); break;
-        case 'b': setNewView('bottomUp'); break;
-        case 'f': setNewView('front'); break;
-        case 'v': setNewView('back'); break;
-        case 'l': setNewView('left'); break;
-        case 'r': setNewView('right'); break;
+        case 't': setView('topDown'); break;
+        case 'b': setView('bottomUp'); break;
+        case 'f': setView('front'); break;
+        case 'v': setView('back'); break;
+        case 'l': setView('left'); break;
+        case 'r': setView('right'); break;
+        case 'x': if (axis === null) setAxis([10,0,0]); break;
+        case 'y': if (axis === null) setAxis([0,10,0]); break;
+        case 'z': if (axis === null) setAxis([0,0,10]); break;
+        case 'arrowup': if (axis !== null) setView('shift'); if (axis.every(num => num <= 0)) setAxis(prev => prev?.map(value => -1 * value)); break;
+        case 'arrowdown': if (axis !== null) setView('shift'); if (axis.every(num => num >= 0)) setAxis(prev => prev?.map(value => -1 * value)); break;
+        case 'arrowright': if (axis !== null) setView('rotate'); if (axis.every(num => num <= 0)) setAxis(prev => prev?.map(value => -1 * value)); break;
+        case 'arrowleft': if (axis !== null) setView('rotate'); if (axis.every(num => num >= 0)) setAxis(prev => prev?.map(value => -1 * value)); break;
         case ' ': 
           event.preventDefault(); 
-          setNewView('start'); 
+          setView('start'); 
           break;
       }
     };
 
+    const handleKeyUp = (event) => {
+      if (['x', 'y', 'z'].includes(event.key.toLowerCase())) {
+        setAxis(null);
+      }
+
+      if(['arrowup', 'arrowdown', 'arrowright', 'arrowleft'].includes(event.key.toLowerCase())){
+        setView("");
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []); 
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [axis, view]); 
 
   const handleChange = (event) => {
     setActive(event.target.value); 
     useStore.setState({ colors: null }); // Reset colors to trigger re-render
     setKey(prevKey => prevKey + 1); // Force re-render of PointCloudViewer
   };
-  // const toggleActiveColor = (activeColor) => {
-  //   setIsActive(activeColor);
-  //   useStore.setState({ colors: null }); // Reset colors to trigger re-render
-  //   setKey(prevKey => prevKey + 1); // Force re-render of PointCloudViewer
-  // };
 
-
-  const setNewView = (newView) => {
-    setView(newView);
-    setKey(prevKey => prevKey + 1); // Force re-render of PointCloudViewer
-  }
 
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#dbd7d7' }}>
@@ -238,7 +277,7 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
         <pointLight position={[10, 10, 10]} />
         
         <PointCloudViewer key={key} fileUrl={fileSource} active={active} />
-        <ViewControls view={view} zoom={zoom} setZoom={setZoom} />
+        <ViewControls view={view} zoom={zoom} setZoom={setZoom} axis={axis} />
 
         <GizmoHelper alignment="bottom-left" margin={[80, 80]}>
           <GizmoViewport axisColors={['#ff3653', '#8adb00', '#2c8fff']} labelColor="white" />
