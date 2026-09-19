@@ -1,0 +1,61 @@
+.las-viewer {
+	width: 100vw;
+	height: 100vh;
+	background: #dbd7d7;
+}
+
+.view-color-box {
+	min-width: 150px;
+	position: absolute;
+	top: 20px;
+	left: 20px;
+	z-index: 10;
+	background-color: rgba(255, 255, 255, 0.9);
+	border-radius: 8px;
+	padding: 5px;
+}
+
+.zoom-box {
+	position: absolute;
+	top: 120px;
+	left: 20px;
+	height: 250px;
+	z-index: 10;
+	background-color: rgba(255, 255, 255, 0.9);
+	border-radius: 8px;
+	padding: 15px 5px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.zoom-in {
+	margin-bottom: 15px;
+	font-weight: bold;
+	color: #555;
+	cursor: pointer;
+	font-size: 20px;
+	user-select: none;
+}
+
+.zoom-out {
+	margin-top: 15px;
+	font-weight: bold;
+	color: #555;
+	cursor: pointer;
+	font-size: 24px;
+	user-select: none;
+	line-height: 10px;
+}
+
+.btn-style {
+	padding: 8px 16px;
+	background: #ffffff;
+	border: 1px solid #ccc;
+	border-radius: 4px;
+	cursor: pointer;
+	font-weight: bold;
+	margin-right: 5px;
+	margin-bottom: 5px;
+}

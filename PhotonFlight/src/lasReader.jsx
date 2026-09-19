@@ -5,6 +5,7 @@ import { load } from '@loaders.gl/core';
 import { LASLoader } from '@loaders.gl/las';
 import { applyHeightMapColor } from './color/heightMap';
 import { applySlopeMapColor } from './color/slopeMap';
+import './lasReader.css';
 import * as THREE from 'three';
 import useStore from './useStore';
 import Slider from '@mui/material/Slider';
@@ -269,9 +270,8 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
     setKey(prevKey => prevKey + 1); // Force re-render of PointCloudViewer
   };
 
-
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#dbd7d7' }}>
+    <div className="las-viewer">
       <Canvas camera={{ position: [0, 10, 50], fov: 60 }}>
         <ambientLight intensity={1.5} />
         <pointLight position={[10, 10, 10]} />
@@ -284,79 +284,43 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
         </GizmoHelper>
       </Canvas>
 
-     {/* UI Box Positioning and Styling */}
-	  <Box sx={{ 
-		minWidth: 150, 
-		position: 'absolute', 
-  		top: '20px',
-  		left: '20px',
-  		zIndex: 10,
-  		backgroundColor: 'rgba(255, 255, 255, 0.9)', // Solid backdrop for readability
-  		borderRadius: '8px', // Rounded corners to match standard UI
-  		padding: '5px' // Slight padding around the input
-	  }}>
-	  <FormControl fullWidth>
-	  <InputLabel id="View Color Selection">View Color</InputLabel>
-	  <Select
-	  labelId="View Label"
-	  id="View Selection"
-	  value={active}
-	  label="View Color"
-	  onChange={handleChange}
-	  >
-	  <MenuItem value={'base'}>Base</MenuItem>
-	  <MenuItem value={'height'}>Height</MenuItem>
-	  <MenuItem value={'slope'}>Slope</MenuItem>
-	  </Select>
-	  </FormControl>
-	  </Box>
-    <Box sx={{
-        position: 'absolute',
-        top: '120px',
-        left: '20px',
-        height: 250,
-        zIndex: 10,
-        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-        borderRadius: '8px',
-        padding: '15px 5px',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-      }}>
+      <Box className="view-color-box">
+        <FormControl fullWidth>
+          <InputLabel id="View Color Selection">View Color</InputLabel>
+          
+          <Select
+            labelId="View Label"
+            id="View Selection"
+            value={active}
+            label="View Color"
+            onChange={handleChange}>
+
+            <MenuItem value={'base'}>Base</MenuItem>
+            <MenuItem value={'height'}>Height</MenuItem>
+            <MenuItem value={'slope'}>Slope</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
+      <Box className="zoom-box">
         <div 
-  onClick={() => setZoom(prev => Math.min(prev + 10, 200))}
-  style={{ marginBottom: '15px', fontWeight: 'bold', color: '#555', cursor: 'pointer', fontSize: '20px', userSelect: 'none' }}
->
-  +
-</div>
+          onClick={() => setZoom(prev => Math.min(prev + 10, 200))}
+          className="zoom-in">
+          +
+        </div>
         <Slider
           orientation="vertical"
           value={zoom}
           min={10}
           max={200}
           onChange={(event, newValue) => setZoom(newValue)}
-          aria-label="Camera Zoom"
-        />
-    <div 
-  onClick={() => setZoom(prev => Math.max(prev - 10, 10))}
-  style={{ marginTop: '15px', fontWeight: 'bold', color: '#555', cursor: 'pointer', fontSize: '24px', userSelect: 'none', lineHeight: '10px' }}
->
-  -
-</div>
+          aria-label="Camera Zoom" />
+        <div 
+          onClick={() => setZoom(prev => Math.max(prev - 10, 10))}
+          className="zoom-out">
+          -
+        </div>
       </Box>
     </div>
   );
 }
 
-// Extracted button styling 
-const btnStyle = {
-  padding: '8px 16px',
-  background: '#ffffff',
-  border: '1px solid #ccc',
-  borderRadius: '4px',
-  cursor: 'pointer',
-  fontWeight: 'bold',
-  marginRight: '5px',
-  marginBottom: '5px'
-};
