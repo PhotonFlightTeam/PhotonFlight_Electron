@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { OrbitControls, GizmoHelper, GizmoViewport, GizmoViewcube } from '@react-three/drei';
-import { Canvas, useThree } from '@react-three/fiber';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { GizmoHelper, GizmoViewport } from '@react-three/drei';
+import { Canvas } from '@react-three/fiber';
 import { load } from '@loaders.gl/core';
 import { LASLoader } from '@loaders.gl/las';
 import { applyHeightMapColor } from './color/heightMap';
@@ -16,16 +16,38 @@ import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import Select from '@mui/material/Select';
+import ViewControls from './ViewControls';
 
 // Point Cloud Renderer Component
-function PointCloudViewer({ fileUrl, active }) {
+const PointCloudViewer = ({ fileUrl, active }) => {
   const [pointData, setPointData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null); 
 	// min is the value at the minimum point, max is the val at maximum point
 	// NOT to be confused with min and max of RGB Color Space
   const [rgbMinMax, setRgbMinMax] = useState({ min: [0,1,0], max: [1,0,0] });
+  const pointsRef = useRef();
 
+  const handleClick = (event) => {
+    // Prevent the click from bleeding through to objects behind it
+    event.stopPropagation();
+    // R3F automatically computes intersections and sorts them by proximity
+    const intersects = event.intersections;
+    
+    if (intersects && intersects.length > 0) {
+      // The first element is always the closest point to the click ray
+      const closestIntersect = intersects[0];
+      //const pointIndex = closestIntersect.index;
+      const pointPosition = closestIntersect.point;
+
+      console.log(pointPosition);
+      colorCircle(pointsRef.current.geometry, [pointPosition.x, pointPosition.y, pointPosition.z], 5, [1,1,0]);
+
+      pointsRef.key = pointsRef.key + 1;
+    }
+  };
+
+  // Parses the LiDAR data
   useEffect(() => {
     async function parseLasFile() {
       try {
@@ -45,38 +67,39 @@ function PointCloudViewer({ fileUrl, active }) {
     parseLasFile();
   }, [fileUrl]);
 
-// Build optimized Three.js Buffer Geometry using useMemo
+
+  // Build Three.js Buffer Geometry using useMemo
   const geometry = useMemo(() => {
+    // Ensures that point data exists. 
     if (!pointData || !pointData.attributes.POSITION) return null;
 
     const geo = new THREE.BufferGeometry();
     // Extract Positions array [x1, y1, z1, x2, y2, z2, ...]
+    // Store the position in global state
     const positions = pointData.attributes.POSITION.value;
     useStore.setState({ positions: positions });
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
-    if (pointData.attributes.COLOR_0 && active === 'base') {
+    // Check which color mode the program is set to
+    if (useStore.getState().colors !== null) {
+	    // Handle RGB colors if they exist in the point cloud attributes
+      geo.setAttribute('color', new THREE.BufferAttribute(useStore.getState().colors, 3));
+    } else if (pointData.attributes.COLOR_0 && active === 'base') {
       const colors = pointData.attributes.COLOR_0.value;
       // Normalize values if they are 16-bit integers instead of floats (0.0 - 1.0)
       const normalizedColors = pointData.attributes.COLOR_0.type === 5123 
         ? Float32Array.from(colors, v => v / 65535) 
         : colors;
+      // Structure from file is rgba removes a
       const remove4s = normalizedColors.filter((_, index) => (index + 1) % 4 !== 0);
         
+      // Set color value for attribute and global state
       geo.setAttribute('color', new THREE.BufferAttribute(remove4s, 3));
-
       useStore.setState({ colors: remove4s });
 
-      console.log(positions);
-
+      // Examples uses of the color functions
       colorCircle(geo, [322289, 4262576, 0], 50, [1, 0, 0]);
-
       colorSquare(geo, [322389, 4262676, 0], 50, 50, [0, 0, 1]);
-
-
-    } else if (useStore.getState().colors !== null) {
-	   // Handle RGB colors if they exist in the point cloud attributes
-      geo.setAttribute('color', new THREE.BufferAttribute(useStore.getState().colors, 3));
     } else { // If no RGB data or not active default is by slope gradient mapping
       if (active === 'height') {
         applyHeightMapColor(geo, positions, rgbMinMax);
@@ -93,8 +116,12 @@ function PointCloudViewer({ fileUrl, active }) {
 
   if (loading || error || !geometry) return null;  // Handle loading status via standard React UI overhead
 
+
   return (
-    <points geometry={geometry}>
+    <points 
+    ref={pointsRef} 
+    geometry={geometry}
+    onPointerDown={handleClick}>
       <pointsMaterial 
         size={0.05} // Adjust thickness based on data density
         vertexColors={!!pointData.attributes.COLOR_0} // Use laser-captured color metrics if available
@@ -104,100 +131,6 @@ function PointCloudViewer({ fileUrl, active }) {
   );
 }
 
-function ViewControls({ view = 'start', zoom, setZoom, axis = null}) {
-  const { camera } = useThree();
-  const controlsRef = useRef();
-  const isUpdatingFromSlider = useRef(false);
-
-  const maxDist = 1000; // Maximum distance from camera to target
-  const minDist = 1;  // Minimum distance from camera to target
-  // Slider Min/Max
-  const maxZoom = 200; // Slider top value
-  const minZoom = 10;  // Slider bottom value
-
-  // Helper math to map physical distance to a 10-200 slider value
-  const distToZoom = (dist) => maxZoom - (((Math.max(minDist, Math.min(dist, maxDist)) - minDist) / (maxDist - minDist)) * (maxZoom - minZoom));
-  const zoomToDist = (z) => minDist + (((maxZoom - Math.max(minZoom, Math.min(z, maxZoom))) / (maxZoom - minZoom)) * (maxDist - minDist));
-
-  // Sync Slider to Mouse Wheel (OrbitControls internal change)
-  useEffect(() => {
-    const controls = controlsRef.current;
-    if (!controls) return;
-
-    const onControlChange = () => {
-      if (isUpdatingFromSlider.current) return;
-
-      const dist = camera.position.distanceTo(controls.target);
-      setZoom(() => distToZoom(dist));
-    };
-
-    controls.addEventListener('change', onControlChange);
-    return () => controls.removeEventListener('change', onControlChange);
-  }, [camera, setZoom]); //RIGHT HERE FIXME
-  
-  //Sync Slider Camera
-  useEffect(() => {
-    const controls = controlsRef.current;
-    if (!controls) return;
-
-    const currentDist = camera.position.distanceTo(controls.target);
-    const targetDist = zoomToDist(zoom);
-    
-    // Only move the camera if the slider value differs significantly from current view
-    if (Math.abs(currentDist - targetDist) > 0.5) {
-      const direction = new THREE.Vector3().subVectors(camera.position, controls.target).normalize();
-      if (direction.lengthSq() === 0) direction.set(0, 0, 1);
-
-      isUpdatingFromSlider.current = true;
-
-      camera.position.copy(controls.target).add(direction.multiplyScalar(targetDist));
-      controls.update();
-
-      isUpdatingFromSlider.current = false;
-    }
-  }, [zoom, camera]);
-
-  useEffect(() => {
-    const controls = controlsRef.current;
-    if (!controls) return;
-
-    const applyView = (pos, dir) => {
-      controls.target.set(0, 0, 0);
-      camera.position.set(pos[0], pos[1], pos[2]);
-      camera.up.set(dir[0], dir[1], dir[2]);
-      controls.update();
-      // Update the slider to match the new perspective's distance
-      setZoom(distToZoom(camera.position.distanceTo(controls.target)));
-    };
-
-    const shift = (pos) => {
-      console.log(pos);
-      camera.position.x += pos[0];
-      camera.position.y += pos[1];
-      camera.position.z += pos[2];
-    };
-
-    const rotate = (dir) => {
-      controls.target.x += dir[0];
-      controls.target.y += dir[1];
-      controls.target.z += dir[2];
-    };
-
-    switch (view) {
-      case 'start': applyView([0, 0, 50], [0, 1, 0]); break;
-      case 'topDown': applyView([0, 0, 500], [0, 1, 0]); break;
-      case 'bottomUp': applyView([0, 0, -500], [0, -1, 0]); break;
-      case 'front': applyView([500, 0, 0], [0, 0, 1]); break;
-      case 'back': applyView([-500, 0, 0], [0, 0, 1]); break;
-      case 'right': applyView([0, 500, 0], [0, 0, 1]); break;
-      case 'left': applyView([0, -500, 0], [0, 0, 1]); break;
-      case 'shift': shift(axis); break;
-      case 'rotate': rotate(axis); break;
-    }
-  }, [view, camera, setZoom]);
-
-  return <OrbitControls ref={controlsRef} makeDefault enableDamping maxDistance={maxDist} minDistance={minDist}/>;
-}
 
 // Parent Wrapper providing the WebGL Viewport Context
 export default function LasViewer({ fileUrl: initialFileUrl }) {
@@ -283,7 +216,9 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
 
   return (
     <div className="las-viewer">
-      <Canvas camera={{ position: [0, 10, 50], fov: 60 }}>
+      <Canvas 
+      camera={{ position: [0, 10, 50], fov: 60 }}
+      raycaster={{ params: { Points: { threshold: 0.1 } } }}>
         <ambientLight intensity={1.5} />
         <pointLight position={[10, 10, 10]} />
         
