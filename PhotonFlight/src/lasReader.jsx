@@ -5,6 +5,8 @@ import { load } from '@loaders.gl/core';
 import { LASLoader } from '@loaders.gl/las';
 import { applyHeightMapColor } from './color/heightMap';
 import { applySlopeMapColor } from './color/slopeMap';
+import { colorCircle } from './color/colorCircle';
+import { colorSquare } from './color/colorSquare';
 import './lasReader.css';
 import * as THREE from 'three';
 import useStore from './useStore';
@@ -14,7 +16,6 @@ import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import Select from '@mui/material/Select';
-import { breadcrumbsClasses } from '@mui/material/Breadcrumbs';
 
 // Point Cloud Renderer Component
 function PointCloudViewer({ fileUrl, active }) {
@@ -49,20 +50,30 @@ function PointCloudViewer({ fileUrl, active }) {
     if (!pointData || !pointData.attributes.POSITION) return null;
 
     const geo = new THREE.BufferGeometry();
-// Extract Positions array [x1, y1, z1, x2, y2, z2, ...]
+    // Extract Positions array [x1, y1, z1, x2, y2, z2, ...]
     const positions = pointData.attributes.POSITION.value;
     useStore.setState({ positions: positions });
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
     if (pointData.attributes.COLOR_0 && active === 'base') {
       const colors = pointData.attributes.COLOR_0.value;
- // Normalize values if they are 16-bit integers instead of floats (0.0 - 1.0)
+      // Normalize values if they are 16-bit integers instead of floats (0.0 - 1.0)
       const normalizedColors = pointData.attributes.COLOR_0.type === 5123 
         ? Float32Array.from(colors, v => v / 65535) 
         : colors;
+      const remove4s = normalizedColors.filter((_, index) => (index + 1) % 4 !== 0);
         
-      geo.setAttribute('color', new THREE.BufferAttribute(normalizedColors, pointData.attributes.COLOR_0.size));
-      useStore.setState({ colors: normalizedColors });
+      geo.setAttribute('color', new THREE.BufferAttribute(remove4s, 3));
+
+      useStore.setState({ colors: remove4s });
+
+      console.log(positions);
+
+      colorCircle(geo, [322289, 4262576, 0], 50, [1, 0, 0]);
+
+      colorSquare(geo, [322389, 4262676, 0], 50, 50, [0, 0, 1]);
+
+
     } else if (useStore.getState().colors !== null) {
 	   // Handle RGB colors if they exist in the point cloud attributes
       geo.setAttribute('color', new THREE.BufferAttribute(useStore.getState().colors, 3));
