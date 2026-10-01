@@ -85,7 +85,7 @@ app.whenReady().then(() => {
               ]
             });
             if (!canceled && filePath) {
-              // Send the destination path to the renderer process to handle saving
+              // TODO: Send the destination path to the renderer process to handle saving
               browserWindow.webContents.send('file-exported', filePath);
             }
           }
@@ -94,6 +94,11 @@ app.whenReady().then(() => {
         { role: 'quit' }
       ]
     },
+
+    // label: 'Plugin',
+    // submenu: [
+    //  {}
+    //]
     // TODO: other menus (Edit, View, Window, etc.)
   ];
   

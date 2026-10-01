@@ -53,7 +53,9 @@ const PointCloudViewer = ({ fileUrl, active }) => {
       try {
         setLoading(true);
 	      //Load and Parse binary .las/.laz file
-        const data = await load(fileUrl, LASLoader);
+        const source = fileUrl instanceof ArrayBuffer ?
+        fileUrl.slice(0) : fileUrl;
+        const data = await load(source, LASLoader);
         setPointData(data);
         setError(null);
       } catch (err) {
@@ -124,7 +126,7 @@ const PointCloudViewer = ({ fileUrl, active }) => {
     onPointerDown={handleClick}>
       <pointsMaterial 
         size={0.05} // Adjust thickness based on data density
-        vertexColors={!!pointData.attributes.COLOR_0} // Use laser-captured color metrics if available
+        vertexColors={!!geometry.attributes.color}
         sizeAttenuation={true} // Near points appear larger than distant points
       />
     </points>
@@ -142,26 +144,31 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
   const [zoom, setZoom] = useState(180);
 
   useEffect(() => {
-    if (window.electronAPI) {
-      window.electronAPI.onFileImported(async (filePath) => {
-        const buffer = await window.electronAPI.readFile(filePath);
-        if (buffer) {
-          const arrayBuffer = buffer.buffer ? buffer.buffer : buffer;
-          setFileSource(arrayBuffer);
-          useStore.setState({ colors: null, positions: null }); 
-          setKey(prevKey => prevKey + 1); 
-        }
-      });
+    if (!window.electronAPI) return;
 
-      window.electronAPI.onFileExported(async (filePath) => {
-        const { positions } = useStore.getState();
-        if (!positions) return;
+    const offImport = window.electronAPI.onFileImported(async (filePath) => { // Import a .las file and load it into the viewer
+      const buffer = await window.electronAPI.readFile(filePath);
+      if (buffer) { 
+        const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+        setFileSource(arrayBuffer);
+        useStore.setState({ colors: null, positions: null});
+        setKey(prevKey => prevKey + 1); // Force re-render of PointCloud Viewer
+      }
+    });
 
-        const encodedLasData = new Uint8Array(); 
-        await window.electronAPI.saveFile(filePath, encodedLasData);
-      });
-    }
-  }, []);
+    const offExport = window.electronAPI.onFileExported(async (filePath) => { // Export the current point cloud data to a .las file
+      const { positions } = useStore.getState();
+      if (!positions) return;
+
+      const encodedLasData = new Uint8Array();
+      await window.electronAPI.saveFile(filePath, encodedLasData);
+    });
+
+    return () => {
+      offImport();
+      offExport();
+    };
+  }, []); // Wtf even is this line dawg. Like Legit. 
 
   useEffect(() => {
     const handleKeyDown = (event) => {

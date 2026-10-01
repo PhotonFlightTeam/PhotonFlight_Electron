@@ -4,10 +4,15 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  // Listen for menu clicks
-  onFileImported: (callback) => ipcRenderer.on('file-imported', (_event, filePath) => callback(filePath)),
-  onFileExported: (callback) => ipcRenderer.on('file-exported', (_event, filePath) => callback(filePath)),
-  
+  // Remove listeners on cleanup
+  onFileImported: (callback) => { const handler = (_event, filePath) => callback(filePath);
+    ipcRenderer.on('file-imported', handler);
+    return () => ipcRenderer.removeListener('file-imported', handler);
+  },
+  onFileExported: (callback) => { const handler = (_event, filePath) => callback(filePath);
+    ipcRenderer.on('file-exported', handler);
+    return () => ipcRenderer.removeListener('file-exported', handler);
+  },
   // Request file system operations from main.js
   readFile: (filePath) => ipcRenderer.invoke('read-file', filePath),
   saveFile: (filePath, data) => ipcRenderer.invoke('save-file', filePath, data)
