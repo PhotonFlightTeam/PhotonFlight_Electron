@@ -2,6 +2,7 @@ import { app, BrowserWindow, Menu, dialog, ipcMain } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import fs from 'node:fs/promises';
+import { registerPluginHandlers, importPlugin } from './pluginManager';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -53,6 +54,8 @@ app.whenReady().then(() => {
     }
   });
 
+  registerPluginHandlers();
+
   const template = [
     {
       label: 'File',
@@ -95,10 +98,33 @@ app.whenReady().then(() => {
       ]
     },
 
-    // label: 'Plugin',
-    // submenu: [
-    //  {}
-    //]
+    {
+      labale: 'Plugins',
+      submenu: [
+        {
+          label: 'Library',
+          click: (menuItem, browserWindow) => {
+            browserWindow?.webContents.send('open-plugin-library');
+          }
+        },
+        {
+          label: 'Import...',
+          click: async (menuItem, browserWindow) => {
+            if (!browserWindow) return;
+            try {
+              const id = await importPlugin(browserWindow);
+              if (id) {
+                // Refresh the library and show it so user sees the new plugin
+                browserWindow.webContents.send('plugins-changed');
+                browserWindow.webContents.send('open-plugin-library');
+              }
+            } catch (error) {
+              dialog.showErrorBox('Plugin import failed', error.message);
+            }
+          }
+        }
+      ]
+    },
     // TODO: other menus (Edit, View, Window, etc.)
   ];
   
