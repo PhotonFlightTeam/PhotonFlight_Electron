@@ -1,12 +1,13 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { OrbitControls } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
-export default function ViewControls({ view = 'start', zoom, setZoom, axis = null}) {
-  const { camera } = useThree();
+export default function ViewControls({ zoom, setZoom }) {
+  const { camera, gl } = useThree();
   const controlsRef = useRef();
   const isUpdatingFromSlider = useRef(false);
+  const [axis, setAxis] = useState(null);
 
   const maxDist = 1000; // Maximum distance from camera to target
   const minDist = 1;  // Minimum distance from camera to target
@@ -55,18 +56,21 @@ export default function ViewControls({ view = 'start', zoom, setZoom, axis = nul
       isUpdatingFromSlider.current = false;
     }
   }, [zoom, camera]);
+  
 
   useEffect(() => {
-    const controls = controlsRef.current;
-    if (!controls) return;
+    const canvas = gl.domElement;
+    if (!canvas) return;
+    canvas.tabIndex = 0;
+    const focus = () => canvas.focus();
 
     const applyView = (pos, dir) => {
-      controls.target.set(0, 0, 0);
+      controlsRef.current.target.set(0, 0, 0);
       camera.position.set(pos[0], pos[1], pos[2]);
       camera.up.set(dir[0], dir[1], dir[2]);
-      controls.update();
+      controlsRef.current.update();
       // Update the slider to match the new perspective's distance
-      setZoom(distToZoom(camera.position.distanceTo(controls.target)));
+      setZoom(distToZoom(camera.position.distanceTo(controlsRef.current.target)));
     };
 
     const shift = (pos) => {
@@ -77,23 +81,52 @@ export default function ViewControls({ view = 'start', zoom, setZoom, axis = nul
     };
 
     const rotate = (dir) => {
-      controls.target.x += dir[0];
-      controls.target.y += dir[1];
-      controls.target.z += dir[2];
+      controlsRef.current.target.x += dir[0];
+      controlsRef.current.target.y += dir[1];
+      controlsRef.current.target.z += dir[2];
     };
 
-    switch (view) {
-      case 'start': applyView([0, 0, 50], [0, 1, 0]); break;
-      case 'topDown': applyView([0, 0, 500], [0, 1, 0]); break;
-      case 'bottomUp': applyView([0, 0, -500], [0, -1, 0]); break;
-      case 'front': applyView([500, 0, 0], [0, 0, 1]); break;
-      case 'back': applyView([-500, 0, 0], [0, 0, 1]); break;
-      case 'right': applyView([0, 500, 0], [0, 0, 1]); break;
-      case 'left': applyView([0, -500, 0], [0, 0, 1]); break;
-      case 'shift': shift(axis); break;
-      case 'rotate': rotate(axis); break;
-    }
-  }, [view, camera, setZoom]);
+    const handleKeyDown = (event) => {
+      console.log(event.key);
+      if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
+
+      switch (event.key.toLowerCase()) {
+        case 't': applyView([0, 0, 500], [0, 1, 0]); break;
+        case 'b': applyView([0, 0, -500], [0, -1, 0]); break;
+        case 'f': applyView([500, 0, 0], [0, 0, 1]); break;
+        case 'v': applyView([-500, 0, 0], [0, 0, 1]); break;
+        case 'l': applyView([0, -500, 0], [0, 0, 1]); break;
+        case 'r': applyView([0, 500, 0], [0, 0, 1]); break;
+        case 'x': if (axis === null) setAxis([10,0,0]); break;
+        case 'y': if (axis === null) setAxis([0,10,0]); break;
+        case 'z': if (axis === null) setAxis([0,0,10]); break;
+        case 'arrowup': if (axis !== null) shift(axis); break;
+        case 'arrowdown': if (axis !== null) shift(axis.map(num => -1 * num)); break;
+        case 'arrowright': if (axis !== null) rotate(axis); break;
+        case 'arrowleft': if (axis !== null) rotate(axis.map(num => -1 * num)); break;
+        case ' ': 
+          event.preventDefault(); 
+          applyView([0, 0, 50], [0, 1, 0]); 
+          break;
+      }
+    };
+
+    const handleKeyUp = (event) => {
+      if (['x', 'y', 'z'].includes(event.key.toLowerCase())) {
+        setAxis(null);
+      }
+    };
+
+    canvas.addEventListener('click', focus);
+    canvas.addEventListener('keydown', handleKeyDown);
+    canvas.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      canvas.removeEventListener('click', focus);
+      canvas.removeEventListener('keydown', handleKeyDown);
+      canvas.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [gl, camera, axis]);
 
   return <OrbitControls ref={controlsRef} makeDefault enableDamping maxDistance={maxDist} minDistance={minDist}/>;
 }

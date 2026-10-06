@@ -2,7 +2,7 @@ import { app, BrowserWindow, Menu, dialog, ipcMain } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import fs from 'node:fs/promises';
-import { registerPluginHandlers, importPlugin } from './pluginManager';
+import { registerPluginHandlers, importPlugins } from './pluginManager';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -99,7 +99,7 @@ app.whenReady().then(() => {
     },
 
     {
-      labale: 'Plugins',
+      label: 'Plugins',
       submenu: [
         {
           label: 'Library',

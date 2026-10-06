@@ -1,15 +1,15 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { GizmoHelper, GizmoViewport } from '@react-three/drei';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useThree } from '@react-three/fiber';
 import { load } from '@loaders.gl/core';
 import { LASLoader } from '@loaders.gl/las';
-import { applyHeightMapColor } from './color/heightMap';
-import { applySlopeMapColor } from './color/slopeMap';
-import { colorCircle } from './color/colorCircle';
-import { colorSquare } from './color/colorSquare';
-import './lasReader.css';
+import { applyHeightMapColor } from '../color/heightMap';
+import { applySlopeMapColor } from '../color/slopeMap';
+import { colorCircle } from '../color/colorCircle';
+import { colorSquare } from '../color/colorSquare';
+import '../css/lasReader.css';
 import * as THREE from 'three';
-import useStore from './useStore';
+import useStore from '../useStore';
 import Slider from '@mui/material/Slider';
 import Box from '@mui/material/Box';
 import InputLabel from '@mui/material/InputLabel';
@@ -19,33 +19,13 @@ import Select from '@mui/material/Select';
 import ViewControls from './ViewControls';
 
 // Point Cloud Renderer Component
-const PointCloudViewer = ({ fileUrl, active }) => {
+const PointCloudViewer = ({ fileUrl, active, pointsRef }) => {
   const [pointData, setPointData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null); 
 	// min is the value at the minimum point, max is the val at maximum point
 	// NOT to be confused with min and max of RGB Color Space
   const [rgbMinMax, setRgbMinMax] = useState({ min: [0,1,0], max: [1,0,0] });
-  const pointsRef = useRef();
-
-  const handleClick = (event) => {
-    // Prevent the click from bleeding through to objects behind it
-    event.stopPropagation();
-    // R3F automatically computes intersections and sorts them by proximity
-    const intersects = event.intersections;
-    
-    if (intersects && intersects.length > 0) {
-      // The first element is always the closest point to the click ray
-      const closestIntersect = intersects[0];
-      //const pointIndex = closestIntersect.index;
-      const pointPosition = closestIntersect.point;
-
-      console.log(pointPosition);
-      colorCircle(pointsRef.current.geometry, [pointPosition.x, pointPosition.y, pointPosition.z], 5, [1,1,0]);
-
-      pointsRef.key = pointsRef.key + 1;
-    }
-  };
 
   // Parses the LiDAR data
   useEffect(() => {
@@ -118,15 +98,11 @@ const PointCloudViewer = ({ fileUrl, active }) => {
 
   if (loading || error || !geometry) return null;  // Handle loading status via standard React UI overhead
 
-
   return (
-    <points 
-    ref={pointsRef} 
-    geometry={geometry}
-    onPointerDown={handleClick}>
+    <points ref={pointsRef} geometry={geometry} >
       <pointsMaterial 
         size={0.05} // Adjust thickness based on data density
-        vertexColors={!!geometry.attributes.color}
+        vertexColors={!!geometry.attributes.color} // Use laser-captured color metrics if available
         sizeAttenuation={true} // Near points appear larger than distant points
       />
     </points>
@@ -137,11 +113,13 @@ const PointCloudViewer = ({ fileUrl, active }) => {
 // Parent Wrapper providing the WebGL Viewport Context
 export default function LasViewer({ fileUrl: initialFileUrl }) {
   const [active, setActive] = useState('base');
-  const [view, setView] = useState('start');
-  const [axis, setAxis] = useState(null);
+  // const [view, setView] = useState('start');
+  // const [axis, setAxis] = useState(null);
   const [key, setKey] = useState(0);
   const [fileSource, setFileSource] = useState(initialFileUrl);
   const [zoom, setZoom] = useState(180);
+  const canvasRef = useRef();
+  const pointsRef = useRef();
 
   useEffect(() => {
     if (!window.electronAPI) return;
@@ -170,67 +148,58 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
     };
   }, []); // Wtf even is this line dawg. Like Legit. 
 
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      console.log(event.key);
-      if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
-
-      switch (event.key.toLowerCase()) {
-        case 't': setView('topDown'); break;
-        case 'b': setView('bottomUp'); break;
-        case 'f': setView('front'); break;
-        case 'v': setView('back'); break;
-        case 'l': setView('left'); break;
-        case 'r': setView('right'); break;
-        case 'x': if (axis === null) setAxis([10,0,0]); break;
-        case 'y': if (axis === null) setAxis([0,10,0]); break;
-        case 'z': if (axis === null) setAxis([0,0,10]); break;
-        case 'arrowup': if (axis !== null) setView('shift'); if (axis.every(num => num <= 0)) setAxis(prev => prev?.map(value => -1 * value)); break;
-        case 'arrowdown': if (axis !== null) setView('shift'); if (axis.every(num => num >= 0)) setAxis(prev => prev?.map(value => -1 * value)); break;
-        case 'arrowright': if (axis !== null) setView('rotate'); if (axis.every(num => num <= 0)) setAxis(prev => prev?.map(value => -1 * value)); break;
-        case 'arrowleft': if (axis !== null) setView('rotate'); if (axis.every(num => num >= 0)) setAxis(prev => prev?.map(value => -1 * value)); break;
-        case ' ': 
-          event.preventDefault(); 
-          setView('start'); 
-          break;
-      }
-    };
-
-    const handleKeyUp = (event) => {
-      if (['x', 'y', 'z'].includes(event.key.toLowerCase())) {
-        setAxis(null);
-      }
-
-      if(['arrowup', 'arrowdown', 'arrowright', 'arrowleft'].includes(event.key.toLowerCase())){
-        setView("");
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, [axis, view]); 
-
   const handleChange = (event) => {
     setActive(event.target.value); 
     useStore.setState({ colors: null }); // Reset colors to trigger re-render
     setKey(prevKey => prevKey + 1); // Force re-render of PointCloudViewer
   };
 
+  const onClick = (event, camera) => {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+
+    const mouse = new THREE.Vector2();
+    mouse.x = ((event.clientX - rect.left) / canvas.clientWidth) * 2 - 1;
+    mouse.y = -((event.clientY - rect.top) / canvas.clientHeight) * 2 + 1;
+
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, camera);
+    raycaster.params.Points.threshold = 0.5; // Adjust based on your point size/scene scale
+
+    const intersects = raycaster.intersectObject(pointsRef.current);
+
+    if (intersects.length > 0) {
+      // The closest intersected point index
+      const index = intersects[0].index;
+      console.log("Clicked point index:", index);
+    }
+  };
+
+  function CanvasClickListener({ onClick }) {
+    const { camera, gl } = useThree();
+
+    useEffect(() => {
+      const handleClick = (event) => onClick(event, camera);
+      const canvas = gl.domElement;
+
+      canvas.addEventListener('click', handleClick);
+      return () => canvas.removeEventListener('click', handleClick);
+    }, [camera, gl, onClick]);
+
+    return null;
+  }
+
   return (
     <div className="las-viewer">
       <Canvas 
-      camera={{ position: [0, 10, 50], fov: 60 }}
-      raycaster={{ params: { Points: { threshold: 0.1 } } }}>
+      ref={canvasRef}
+      camera={{ position: [0, 10, 50], fov: 60 }}>
         <ambientLight intensity={1.5} />
         <pointLight position={[10, 10, 10]} />
         
-        <PointCloudViewer key={key} fileUrl={fileSource} active={active} />
-        <ViewControls view={view} zoom={zoom} setZoom={setZoom} axis={axis} />
+        <PointCloudViewer pointsRef={pointsRef} key={key} fileUrl={fileSource} active={active} />
+        <CanvasClickListener onClick={onClick} />
+        <ViewControls zoom={zoom} setZoom={setZoom} />
 
         <GizmoHelper alignment="bottom-left" margin={[80, 80]}>
           <GizmoViewport axisColors={['#ff3653', '#8adb00', '#2c8fff']} labelColor="white" />
