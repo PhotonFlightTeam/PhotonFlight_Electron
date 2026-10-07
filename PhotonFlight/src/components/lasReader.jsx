@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { GizmoHelper, GizmoViewport } from '@react-three/drei';
 import { Canvas, useThree } from '@react-three/fiber';
 import PointCloudViewer from './PointCloudViewer';
+import MeasureTool from './MeasureTool';
 import '../css/lasReader.css';
 import * as THREE from 'three';
 import useStore from '../useStore';
@@ -17,8 +18,6 @@ import ViewControls from './ViewControls';
 // Parent Wrapper providing the WebGL Viewport Context
 export default function LasViewer({ fileUrl: initialFileUrl }) {
   const [active, setActive] = useState('base');
-  // const [view, setView] = useState('start');
-  // const [axis, setAxis] = useState(null);
   const [key, setKey] = useState(0);
   const [fileSource, setFileSource] = useState(initialFileUrl);
   const [zoom, setZoom] = useState(180);
@@ -58,41 +57,6 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
     setKey(prevKey => prevKey + 1); // Force re-render of PointCloudViewer
   };
 
-  const onClick = (event, camera) => {
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-
-    const mouse = new THREE.Vector2();
-    mouse.x = ((event.clientX - rect.left) / canvas.clientWidth) * 2 - 1;
-    mouse.y = -((event.clientY - rect.top) / canvas.clientHeight) * 2 + 1;
-
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(mouse, camera);
-    raycaster.params.Points.threshold = 0.5; // Adjust based on your point size/scene scale
-
-    const intersects = raycaster.intersectObject(pointsRef.current);
-
-    if (intersects.length > 0) {
-      // The closest intersected point index
-      const index = intersects[0].index;
-      console.log("Clicked point index:", index);
-    }
-  };
-
-  function CanvasClickListener({ onClick }) {
-    const { camera, gl } = useThree();
-
-    useEffect(() => {
-      const handleClick = (event) => onClick(event, camera);
-      const canvas = gl.domElement;
-
-      canvas.addEventListener('click', handleClick);
-      return () => canvas.removeEventListener('click', handleClick);
-    }, [camera, gl, onClick]);
-
-    return null;
-  }
-
   return (
     <div className="las-viewer">
       <Canvas 
@@ -102,7 +66,8 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
         <pointLight position={[10, 10, 10]} />
         
         <PointCloudViewer pointsRef={pointsRef} key={key} fileUrl={fileSource} active={active} />
-        <CanvasClickListener onClick={onClick} />
+        <MeasureTool pointsRef={pointsRef} />
+        {/* <CanvasClickListener onClick={onClick} /> */}
         <ViewControls zoom={zoom} setZoom={setZoom} />
 
         <GizmoHelper alignment="bottom-left" margin={[80, 80]}>
