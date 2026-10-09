@@ -1,7 +1,28 @@
 .las-viewer {
 	width: 100vw;
 	height: 100vh;
+	position: relative;
 	background: #dbd7d7;
+}
+
+.tool-bar {
+	position: absolute;
+	left: 50%;
+	bottom: 20px;
+	z-index: 10;
+	display: flex;
+	align-items: center;
+	transform: translateX(-50%);
+}
+
+.tool-bar > div {
+	display: flex;
+	flex-wrap: nowrap;
+	width: max-content;
+}
+
+.tool-bar .MuiFab-root {
+	flex-shrink: 0;
 }
 
 .view-color-box {

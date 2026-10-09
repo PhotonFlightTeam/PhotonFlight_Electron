@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { GizmoHelper, GizmoViewport } from '@react-three/drei';
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas } from '@react-three/fiber';
 import PointCloudViewer from './PointCloudViewer';
 import MeasureTool from './MeasureTool';
 import '../css/lasReader.css';
-import * as THREE from 'three';
+//import * as THREE from 'three';
 import useStore from '../useStore';
 import Slider from '@mui/material/Slider';
 import Box from '@mui/material/Box';
@@ -13,6 +13,7 @@ import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import Select from '@mui/material/Select';
 import ViewControls from './ViewControls';
+import ToolBar from './ToolBar';
 
 
 // Parent Wrapper providing the WebGL Viewport Context
@@ -75,6 +76,9 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
           <GizmoViewport axisColors={['#ff3653', '#8adb00', '#2c8fff']} labelColor="white" />
         </GizmoHelper>
       </Canvas>
+      <div className="tool-bar">
+        <ToolBar />
+      </div>
 
       <Box className="view-color-box">
         <FormControl fullWidth>
