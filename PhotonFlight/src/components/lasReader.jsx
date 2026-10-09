@@ -32,7 +32,7 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
       if (buffer) { 
         const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
         setFileSource(arrayBuffer);
-        useStore.setState({ colors: null, positions: null});
+        useStore.setState({ colors: null, positions: null, measures: null});
         setKey(prevKey => prevKey + 1); // Force re-render of PointCloud Viewer
       }
     });
@@ -61,11 +61,12 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
     <div className="las-viewer">
       <Canvas 
       ref={canvasRef}
-      camera={{ position: [0, 10, 50], fov: 60 }}>
+      camera={{ position: [0, 10, 50], fov: 60 }}
+      key={key}>
         <ambientLight intensity={1.5} />
         <pointLight position={[10, 10, 10]} />
         
-        <PointCloudViewer pointsRef={pointsRef} key={key} fileUrl={fileSource} active={active} />
+        <PointCloudViewer pointsRef={pointsRef} fileUrl={fileSource} active={active} />
         <MeasureTool pointsRef={pointsRef} />
         {/* <CanvasClickListener onClick={onClick} /> */}
         <ViewControls zoom={zoom} setZoom={setZoom} />
