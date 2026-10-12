@@ -6,7 +6,7 @@ To run the application:
 2. run npm install  
 3. run npm start
 
-Movement Controls:  
+## Movement Controls:  
 Movement can be done with both mouse and keyboard inputs. 
     
 For key controls you must hold x, y, or z and an arrow key. 
@@ -23,12 +23,21 @@ There are also default positions created for each axis clicking the indicated ch
 - +y r -right to left view
 - -y l -left to right view
 
+## Keymaps: 
+
+When in measurement mode: 
+- d -deletes the last line created
+
+When in pin mode: 
+- d -deletes all of the currently displayed pins 
+
+
 
 Updates Needed:  
 - ~~Allowing inputting a file rather than using default .laz~~
 - ~~Create view controls~~
 - More options for basic color variations
-- Creation of a measuring tool
+- ~~Creation of a measuring tool~~
 - Portal for interacting with plugins
 
 The JS library for interpreting .las files only supports versions <=1.3; v1.4 files currently need to be converted.  
