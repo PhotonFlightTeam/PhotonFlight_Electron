@@ -14,6 +14,7 @@ import FormControl from '@mui/material/FormControl';
 import Select from '@mui/material/Select';
 import ViewControls from './ViewControls';
 import ToolBar from './ToolBar';
+import PinTool from './Pin';
 
 
 // Parent Wrapper providing the WebGL Viewport Context
@@ -22,6 +23,7 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
   const [key, setKey] = useState(0);
   const [fileSource, setFileSource] = useState(initialFileUrl);
   const [zoom, setZoom] = useState(180);
+  const [activeTool, setActiveTool] = useState('Select');
   const canvasRef = useRef();
   const pointsRef = useRef();
 
@@ -68,8 +70,8 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
         <pointLight position={[10, 10, 10]} />
         
         <PointCloudViewer pointsRef={pointsRef} fileUrl={fileSource} active={active} />
-        <MeasureTool pointsRef={pointsRef} />
-        {/* <CanvasClickListener onClick={onClick} /> */}
+        <MeasureTool pointsRef={pointsRef} activeTool={activeTool} />
+        <PinTool pointsRef={pointsRef} activeTool={activeTool} />
         <ViewControls zoom={zoom} setZoom={setZoom} />
 
         <GizmoHelper alignment="bottom-left" margin={[80, 80]}>
@@ -77,7 +79,7 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
         </GizmoHelper>
       </Canvas>
       <div className="tool-bar">
-        <ToolBar />
+        <ToolBar activeTool={activeTool} setActiveTool={setActiveTool} />
       </div>
 
       <Box className="view-color-box">

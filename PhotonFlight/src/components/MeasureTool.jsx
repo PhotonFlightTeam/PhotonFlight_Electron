@@ -4,12 +4,14 @@ import { useEffect, useState } from 'react';
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
-export default function MeasureTool({ pointsRef }) {
+export default function MeasureTool({ pointsRef, activeTool }) {
     const { camera, gl } = useThree();
     const [measurePoints, setMeasurePoints] = useState([]);
     const [segments, setSegments] = useState([]);
 
     const onClick = (event, canvas, camera) => {
+        if (activeTool !== 'Measure') return;
+        
         //console.log("Click event:", event);
         const rect = canvas.getBoundingClientRect();
 
@@ -60,12 +62,52 @@ export default function MeasureTool({ pointsRef }) {
         }
     };
 
+    const onKeyDown = (event) => {
+        if (activeTool !== 'Measure') return;
+        if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
+
+        if (event.key.toLowerCase() === 'd') {
+            let measures = useStore.getState().measures;
+            measures.pop();
+            measures.pop();
+            measures.pop();
+            useStore.setState({ measures: measures });
+
+            measures = Array.from(
+                { length: Math.ceil(measures.length / 3) },
+                (_, index) => new THREE.Vector3(
+                    measures[index * 3],
+                    measures[index * 3 + 1],
+                    measures[index * 3 + 2]
+                )
+            );
+
+            setMeasurePoints(measures);
+
+            setSegments(measures.slice(1).map((end, index) => {
+                const start = measures[index];
+
+                return {
+                    index: index,
+                    midpoint: start.clone().add(end).multiplyScalar(0.5),
+                    length: start.distanceTo(end),
+                }
+            }));
+        }
+    }
+
     useEffect(() => {
         const canvas = gl.domElement;
         const handleClick = (event) => onClick(event, canvas, camera);
+        const handleKeyDown = (event) => onKeyDown(event);
       
         canvas.addEventListener('click', handleClick);
-        return () => canvas.removeEventListener('click', handleClick);
+        canvas.addEventListener('keydown', handleKeyDown);
+
+        return () => {
+            canvas.removeEventListener('click', handleClick);
+            canvas.removeEventListener('keydown', handleKeyDown);
+        };
     }, [camera, gl, onClick]);
 
 

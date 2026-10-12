@@ -7,8 +7,7 @@ import NearMeIcon from '@mui/icons-material/NearMe';
 import SquareFootIcon from '@mui/icons-material/SquareFoot';
 import PushPinIcon from '@mui/icons-material/PushPin';
 
-export default function ToolBar() {
-    const [activeTool, setActiveTool] = useState<string | null>(null);
+export default function ToolBar({ activeTool, setActiveTool }: { activeTool: string | null; setActiveTool: (tool: string) => void }) {
 
     return (
         <Box sx={{ '& > :not(style)': { m: 1 } }}>
@@ -27,6 +26,6 @@ export default function ToolBar() {
             onClick={() => setActiveTool('Pin')}>
                 <PushPinIcon />
             </Fab>
-    </Box>
+        </Box>
     )
 }

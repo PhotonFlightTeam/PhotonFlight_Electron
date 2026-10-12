@@ -4,6 +4,7 @@ interface State {
   colors: Array<number> | null;
   positions: Array<number> | null;
   measures: Array<number> | null;
+  pinpoints: Array<number> | null;
 }
 
 // 2. Create the store using the curried form: create<T>()(...)
@@ -12,6 +13,7 @@ const useStore = create<State>()((set) => ({
   colors: null,
   positions: null,
   measures: null,
+  pinpoints: null,
 }))
 
 export default useStore;
