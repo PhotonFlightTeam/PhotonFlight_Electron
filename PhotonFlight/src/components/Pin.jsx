@@ -1,4 +1,3 @@
-import { Billboard } from '@react-three/drei';
 import { MapPin } from 'lucide-react';
 import useStore from '../useStore';
 import { useEffect, useState } from 'react';
@@ -8,13 +7,15 @@ import React from 'react';
 import { Html } from '@react-three/drei';
 
 export default function PinTool({ pointsRef, activeTool }) {
+    // Get camera and WebGL from Three.js state
     const { camera, gl } = useThree();
+    // Pinpoints is 3D points, segments stores the line data
     const [pinPoints, setPinPoints] = useState([]);
 
     const onClick = (event, canvas, camera) => {
-        if (activeTool !== 'Pin') return;
+        if (activeTool !== 'Pin') return; // Ensure tool is active
         
-        //console.log("Click event:", event);
+        // Find the mouse position relative to the canvas
         const rect = canvas.getBoundingClientRect();
 
         const mouse = new THREE.Vector2();
@@ -25,21 +26,24 @@ export default function PinTool({ pointsRef, activeTool }) {
         raycaster.setFromCamera(mouse, camera);
         raycaster.params.Points.threshold = 0.5; // Adjust based on your point size/scene scale
 
+        // Intersect the ray with the points in the scene
         const intersects = raycaster.intersectObject(pointsRef.current);
         const points = useStore.getState().positions;
 
         if (intersects.length > 0) {
+            // Get index of the closest point to the mouse position
             const index = intersects[0].index * 3;
 
+            // Add the point to the array of pinpoints in the store
             let measures = useStore.getState().pinpoints ? useStore.getState().pinpoints : [];
             measures.push(points[index]);
             measures.push(points[index + 1]);
             measures.push(points[index + 2]);
 
+            // Update the store with the new members
             useStore.setState({ pinpoints: measures });
 
-            console.log("Updated pinpoints: ", measures);
-
+            // Convert the flat array to an array of 3D vectors
             measures = Array.from(
                 { length: Math.ceil(measures.length / 3) },
                 (_, index) => new THREE.Vector3(
@@ -49,6 +53,7 @@ export default function PinTool({ pointsRef, activeTool }) {
                 )
             );
 
+            // Update the local state with the new pin points
             setPinPoints(measures);
             
         }
@@ -56,9 +61,10 @@ export default function PinTool({ pointsRef, activeTool }) {
 
 
     const onKeyDown = (event) => {
-        if (activeTool !== 'Pin') return;
+        if (activeTool !== 'Pin') return; // Ensure tool is active
         if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
 
+        // Clear all pinpoints when 'd' is pressed
         if (event.key.toLowerCase() === 'd') {
             setPinPoints([]);
             useStore.setState({ pinpoints: [] });
@@ -66,6 +72,7 @@ export default function PinTool({ pointsRef, activeTool }) {
     }
 
     useEffect(() => {
+        // Add event listeners for click and keydown events
         const canvas = gl.domElement;
         const handleClick = (event) => onClick(event, canvas, camera);
         const handleKeyDown = (event) => onKeyDown(event);

@@ -1,14 +1,12 @@
-import { useState } from 'react';
-
 import Box from '@mui/material/Box';
 import Fab from '@mui/material/Fab';
-
 import NearMeIcon from '@mui/icons-material/NearMe';
 import SquareFootIcon from '@mui/icons-material/SquareFoot';
 import PushPinIcon from '@mui/icons-material/PushPin';
 
 export default function ToolBar({ activeTool, setActiveTool }: { activeTool: string | null; setActiveTool: (tool: string) => void }) {
 
+    // Returns a toolbar with 3 icons that have colors based on state
     return (
         <Box sx={{ '& > :not(style)': { m: 1 } }}>
             <Fab 

@@ -64,6 +64,7 @@ export default function ViewControls({ zoom, setZoom }) {
     canvas.tabIndex = 0;
     const focus = () => canvas.focus();
 
+    // Function to apply a specific view based on position and direction
     const applyView = (pos, dir) => {
       controlsRef.current.target.set(0, 0, 0);
       camera.position.set(pos[0], pos[1], pos[2]);
@@ -73,6 +74,7 @@ export default function ViewControls({ zoom, setZoom }) {
       setZoom(distToZoom(camera.position.distanceTo(controlsRef.current.target)));
     };
 
+    // Function to shift the camera position based on a given vector
     const shift = (pos) => {
       console.log(pos);
       camera.position.x += pos[0];
@@ -80,14 +82,15 @@ export default function ViewControls({ zoom, setZoom }) {
       camera.position.z += pos[2];
     };
 
+    // Function to rotate the camera around the target based on a given vector
     const rotate = (dir) => {
       controlsRef.current.target.x += dir[0];
       controlsRef.current.target.y += dir[1];
       controlsRef.current.target.z += dir[2];
     };
 
+    // Keydown event handler to manage camera controls and view changes
     const handleKeyDown = (event) => {
-      console.log(event.key);
       if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
 
       switch (event.key.toLowerCase()) {
@@ -112,11 +115,13 @@ export default function ViewControls({ zoom, setZoom }) {
     };
 
     const handleKeyUp = (event) => {
+      // Reset axis when the key is released
       if (['x', 'y', 'z'].includes(event.key.toLowerCase())) {
         setAxis(null);
       }
     };
 
+    // Add event listeners for click, keydown, and keyup events to the canvas
     canvas.addEventListener('click', focus);
     canvas.addEventListener('keydown', handleKeyDown);
     canvas.addEventListener('keyup', handleKeyUp);

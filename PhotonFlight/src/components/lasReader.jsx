@@ -4,7 +4,6 @@ import { Canvas } from '@react-three/fiber';
 import PointCloudViewer from './PointCloudViewer';
 import MeasureTool from './MeasureTool';
 import '../css/lasReader.css';
-//import * as THREE from 'three';
 import useStore from '../useStore';
 import Slider from '@mui/material/Slider';
 import Box from '@mui/material/Box';

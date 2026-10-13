@@ -9,8 +9,6 @@ import * as THREE from 'three';
 import useStore from '../useStore';
 
 
-
-
 // Point Cloud Renderer Component
 export default function PointCloudViewer({ fileUrl, active, pointsRef }) {
   const [pointData, setPointData] = useState(null);
