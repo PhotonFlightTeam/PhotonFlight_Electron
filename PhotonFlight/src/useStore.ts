@@ -5,6 +5,7 @@ interface State {
   positions: Array<number> | null;
   measures: Array<number> | null;
   pinpoints: Array<number> | null;
+  user: string | null;
 }
 
 // 2. Create the store using the curried form: create<T>()(...)
@@ -14,6 +15,7 @@ const useStore = create<State>()((set) => ({
   positions: null,
   measures: null,
   pinpoints: null,
+  user: null,
 }))
 
 export default useStore;

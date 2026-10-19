@@ -11,6 +11,9 @@ import useStore from '../useStore';
 
 // Point Cloud Renderer Component
 export default function PointCloudViewer({ fileUrl, active, pointsRef }) {
+  if (!fileUrl) return null; // If no file URL is provided, render nothing
+
+
   const [pointData, setPointData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null); 

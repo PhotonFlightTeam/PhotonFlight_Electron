@@ -2,12 +2,25 @@ import { app, BrowserWindow, Menu, dialog, ipcMain } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import fs from 'node:fs/promises';
-import { registerPluginHandlers, importPlugins } from './pluginManager';
+import { registerPluginHandlers } from './pluginManager';
+import { createClerkBridge } from '@clerk/electron';
+import { storage } from '@clerk/electron/storage';
+
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
   app.quit();
 }
+
+const clerk = createClerkBridge({
+  storage: storage(),
+  renderer: { scheme: 'photonflight', host: 'renderer' },
+})
+
+if (process.defaultApp && process.argv.length >= 2) {
+  app.setAsDefaultProtocolClient('photonflight', process.execPath, [path.resolve(process.argv[1])]);
+}
+
 
 const createWindow = () => {
   // Create the browser window.
@@ -112,7 +125,7 @@ app.whenReady().then(() => {
           click: async (menuItem, browserWindow) => {
             if (!browserWindow) return;
             try {
-              const id = await importPlugin(browserWindow);
+              const id = await importPlugins(browserWindow);
               if (id) {
                 // Refresh the library and show it so user sees the new plugin
                 browserWindow.webContents.send('plugins-changed');
@@ -124,6 +137,20 @@ app.whenReady().then(() => {
           }
         }
       ]
+    },
+
+    {
+      label: 'Account',
+      submenu: [
+        {
+          label: 'Sign Out',
+          click: (menuItem, browserWindow) => {
+            // Optionally, you can also refresh the renderer to reflect the sign-out state
+            browserWindow?.webContents.send('user-signed-out');
+          }
+        }
+      ] 
+
     },
     // TODO: other menus (Edit, View, Window, etc.)
   ];
@@ -145,6 +172,7 @@ app.whenReady().then(() => {
 // Quit when all windows are closed, except on macOS.
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
+    clerk.cleanup();
     app.quit();
   }
 });

@@ -1,5 +1,19 @@
 import { createRoot } from 'react-dom/client';
-import LasViewer from './lasReader';
+import OAuth from './OAuth.jsx';
+import React from 'react';
+import { ClerkProvider } from '@clerk/electron/react';
+
+const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+
+if (!publishableKey) {
+    throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY');
+}
 
 const root = createRoot(document.getElementById('root'));
-root.render(<LasViewer fileUrl="./CO_test1.laz" />);
+root.render(
+    <React.StrictMode>
+        <ClerkProvider publishableKey={publishableKey}>
+            <OAuth />
+        </ClerkProvider>
+    </React.StrictMode>
+);

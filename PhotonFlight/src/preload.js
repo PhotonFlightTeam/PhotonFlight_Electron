@@ -1,7 +1,11 @@
 // See the Electron documentation for details on how to use preload scripts:
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
+import { exposeClerkBridge } from '@clerk/electron/preload';
+
+exposeClerkBridge()
 
 const { contextBridge, ipcRenderer } = require('electron');
+
 
 contextBridge.exposeInMainWorld('electronAPI', {
   // Remove listeners on cleanup
@@ -12,6 +16,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onFileExported: (callback) => { const handler = (_event, filePath) => callback(filePath);
     ipcRenderer.on('file-exported', handler);
     return () => ipcRenderer.removeListener('file-exported', handler);
+  },
+  onSignOutRequested: (callback) => {
+    const handler = () => callback();
+    ipcRenderer.on('user-signed-out', handler);
+    return () => ipcRenderer.removeListener('user-signed-out', handler);
   },
   // Request file system operations from main.js
   readFile: (filePath) => ipcRenderer.invoke('read-file', filePath),
