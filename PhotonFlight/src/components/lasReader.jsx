@@ -22,8 +22,14 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
   const [key, setKey] = useState(0);
   const [fileSource, setFileSource] = useState(initialFileUrl);
   const [zoom, setZoom] = useState(180);
+  const [zoomRequest, setZoomRequest] = useState({ value: 180 });
   const [activeTool, setActiveTool] = useState('Select');
   const pointsRef = useRef();
+
+  const handleZoomRequest = (value) => {
+    setZoom(value);
+    setZoomRequest({ value });
+  };
 
   useEffect(() => {
     if (!window.electronAPI) return;
@@ -68,7 +74,7 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
         <PointCloudViewer pointsRef={pointsRef} fileUrl={fileSource} active={active} />
         <MeasureTool pointsRef={pointsRef} activeTool={activeTool} fileUrl={fileSource} />
         <PinTool pointsRef={pointsRef} activeTool={activeTool} fileUrl={fileSource} />
-        <ViewControls zoom={zoom} setZoom={setZoom} />
+        <ViewControls zoomRequest={zoomRequest} setZoom={setZoom} />
 
         <GizmoHelper alignment="bottom-left" margin={[80, 80]}>
           <GizmoViewport axisColors={['#ff3653', '#8adb00', '#2c8fff']} labelColor="white" />
@@ -97,7 +103,7 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
       </Box>
       <Box className="zoom-box">
         <div 
-          onClick={() => setZoom(prev => Math.min(prev + 10, 200))}
+          onClick={() => handleZoomRequest(Math.min(zoom + 10, 200))}
           className="zoom-in">
           +
         </div>
@@ -106,10 +112,10 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
           value={zoom}
           min={10}
           max={200}
-          onChange={(event, newValue) => setZoom(newValue)}
+          onChange={(event, newValue) => handleZoomRequest(newValue)}
           aria-label="Camera Zoom" />
         <div 
-          onClick={() => setZoom(prev => Math.max(prev - 10, 10))}
+          onClick={() => handleZoomRequest(Math.max(zoom - 10, 10))}
           className="zoom-out">
           -
         </div>
@@ -117,4 +123,3 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
     </div>
   );
 }
-

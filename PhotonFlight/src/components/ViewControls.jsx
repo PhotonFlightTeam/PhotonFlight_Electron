@@ -3,7 +3,7 @@ import { OrbitControls } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
-export default function ViewControls({ zoom, setZoom }) {
+export default function ViewControls({ zoomRequest, setZoom }) {
   const { camera, gl } = useThree();
   const controlsRef = useRef();
   const isUpdatingFromSlider = useRef(false);
@@ -35,13 +35,13 @@ export default function ViewControls({ zoom, setZoom }) {
     return () => controls.removeEventListener('change', onControlChange);
   }, [camera, setZoom]);
   
-  //Sync Slider Camera
+  // Apply camera changes only for explicit slider/button zoom requests.
   useEffect(() => {
     const controls = controlsRef.current;
     if (!controls) return;
 
     const currentDist = camera.position.distanceTo(controls.target);
-    const targetDist = zoomToDist(zoom);
+    const targetDist = zoomToDist(zoomRequest.value);
     
     // Only move the camera if the slider value differs significantly from current view
     if (Math.abs(currentDist - targetDist) > 0.5) {
@@ -55,7 +55,7 @@ export default function ViewControls({ zoom, setZoom }) {
 
       isUpdatingFromSlider.current = false;
     }
-  }, [zoom, camera]);
+  }, [zoomRequest, camera]);
   
 
   useEffect(() => {
