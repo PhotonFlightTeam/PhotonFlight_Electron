@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
-export default function MeasureTool({ pointsRef, activeTool }) {
+export default function MeasureTool({ pointsRef, activeTool, fileUrl }) {
     // Get camera and WebGL from Three.js state
     const { camera, gl } = useThree();
     // Measures is 3D points, segments stores the line data
@@ -26,24 +26,27 @@ export default function MeasureTool({ pointsRef, activeTool }) {
         raycaster.params.Points.threshold = 0.5; // Adjust based on your point size/scene scale
 
         // Intersect the ray with the points in the scene
+        if (!pointsRef.current) return;
         const intersects = raycaster.intersectObject(pointsRef.current);
         const points = useStore.getState().positions;
 
-        if (intersects.length > 0) {
+        if (intersects.length > 0 && points) {
             // Get index of the closest point to the mouse position
             const index = intersects[0].index * 3;
 
             // Add the point to the array of measures in the store
-            let measures = useStore.getState().measures ? useStore.getState().measures : [];
-            measures.push(points[index]);
-            measures.push(points[index + 1]);
-            measures.push(points[index + 2]);
+            const measures = [
+                ...(useStore.getState().measures ?? []),
+                points[index],
+                points[index + 1],
+                points[index + 2],
+            ];
 
             // Update the store with the new members
             useStore.setState({ measures: measures });
 
             // Convert the flat array to an array of 3D vectors
-            measures = Array.from(
+            const measurePoints = Array.from(
                 { length: Math.ceil(measures.length / 3) },
                 (_, index) => new THREE.Vector3(
                     measures[index * 3],
@@ -53,11 +56,11 @@ export default function MeasureTool({ pointsRef, activeTool }) {
             );
 
             // Update the local state with the new measure points
-            setMeasurePoints(measures);
+            setMeasurePoints(measurePoints);
 
             // Update the segments for rendering the lines and lengths
-            setSegments(measures.slice(1).map((end, index) => {
-                const start = measures[index];
+            setSegments(measurePoints.slice(1).map((end, index) => {
+                const start = measurePoints[index];
 
                 // index is used as a key
                 // midpoint is the average of start and end points
@@ -78,14 +81,13 @@ export default function MeasureTool({ pointsRef, activeTool }) {
 
         if (event.key.toLowerCase() === 'd') {
             // Remove the last three points (the last measure) from the store
-            let measures = useStore.getState().measures;
-            measures.pop();
-            measures.pop();
-            measures.pop();
+            const existingMeasures = useStore.getState().measures;
+            if (!existingMeasures || existingMeasures.length < 3) return;
+            const measures = existingMeasures.slice(0, -3);
             useStore.setState({ measures: measures });
 
             // Convert the flat array to an array of 3D vectors
-            measures = Array.from(
+            const measurePoints = Array.from(
                 { length: Math.ceil(measures.length / 3) },
                 (_, index) => new THREE.Vector3(
                     measures[index * 3],
@@ -95,11 +97,11 @@ export default function MeasureTool({ pointsRef, activeTool }) {
             );
 
             // Update the local state with the new measure points
-            setMeasurePoints(measures);
+            setMeasurePoints(measurePoints);
 
             //  Update the segments for rendering the lines and lengths
-            setSegments(measures.slice(1).map((end, index) => {
-                const start = measures[index];
+            setSegments(measurePoints.slice(1).map((end, index) => {
+                const start = measurePoints[index];
 
                 // index is used as a key
                 // midpoint is the average of start and end points
@@ -112,6 +114,11 @@ export default function MeasureTool({ pointsRef, activeTool }) {
             }));
         }
     }
+
+    useEffect(() => {
+        setMeasurePoints([]);
+        setSegments([]);
+    }, [fileUrl]);
 
     useEffect(() => {
         // Add event listeners for click and keydown events
@@ -127,6 +134,39 @@ export default function MeasureTool({ pointsRef, activeTool }) {
             canvas.removeEventListener('keydown', handleKeyDown);
         };
     }, [camera, gl, onClick]);
+
+    useEffect(() => {
+        // Update the store with the new members
+        const measures = useStore.getState().measures;
+        if (!measures) return;
+
+        // Convert the flat array to an array of 3D vectors
+        const measurePoints = Array.from(
+            { length: Math.ceil(measures.length / 3) },
+            (_, index) => new THREE.Vector3(
+                measures[index * 3],
+                measures[index * 3 + 1],
+                measures[index * 3 + 2]
+            )
+        );
+
+        // Update the local state with the new measure points
+        setMeasurePoints(measurePoints);
+
+        // Update the segments for rendering the lines and lengths
+        setSegments(measurePoints.slice(1).map((end, index) => {
+            const start = measurePoints[index];
+
+            // index is used as a key
+            // midpoint is the average of start and end points
+            // length is the distance between start and end points
+            return {
+                index: index,
+                midpoint: start.clone().add(end).multiplyScalar(0.5),
+                length: start.distanceTo(end),
+            }
+        }));
+    }, []);
 
 
     return(

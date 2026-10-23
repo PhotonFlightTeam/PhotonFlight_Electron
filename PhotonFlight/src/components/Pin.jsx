@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import React from 'react';
 import { Html } from '@react-three/drei';
 
-export default function PinTool({ pointsRef, activeTool }) {
+export default function PinTool({ pointsRef, activeTool, fileUrl }) {
     // Get camera and WebGL from Three.js state
     const { camera, gl } = useThree();
     // Pinpoints is 3D points, segments stores the line data
@@ -27,24 +27,27 @@ export default function PinTool({ pointsRef, activeTool }) {
         raycaster.params.Points.threshold = 0.5; // Adjust based on your point size/scene scale
 
         // Intersect the ray with the points in the scene
+        if (!pointsRef.current) return;
         const intersects = raycaster.intersectObject(pointsRef.current);
         const points = useStore.getState().positions;
 
-        if (intersects.length > 0) {
+        if (intersects.length > 0 && points) {
             // Get index of the closest point to the mouse position
             const index = intersects[0].index * 3;
 
             // Add the point to the array of pinpoints in the store
-            let measures = useStore.getState().pinpoints ? useStore.getState().pinpoints : [];
-            measures.push(points[index]);
-            measures.push(points[index + 1]);
-            measures.push(points[index + 2]);
+            const measures = [
+                ...(useStore.getState().pinpoints ?? []),
+                points[index],
+                points[index + 1],
+                points[index + 2],
+            ];
 
             // Update the store with the new members
             useStore.setState({ pinpoints: measures });
 
             // Convert the flat array to an array of 3D vectors
-            measures = Array.from(
+            const pinPoints = Array.from(
                 { length: Math.ceil(measures.length / 3) },
                 (_, index) => new THREE.Vector3(
                     measures[index * 3],
@@ -54,7 +57,7 @@ export default function PinTool({ pointsRef, activeTool }) {
             );
 
             // Update the local state with the new pin points
-            setPinPoints(measures);
+            setPinPoints(pinPoints);
             
         }
     };
@@ -72,6 +75,10 @@ export default function PinTool({ pointsRef, activeTool }) {
     }
 
     useEffect(() => {
+        setPinPoints([]);
+    }, [fileUrl]);
+
+    useEffect(() => {
         // Add event listeners for click and keydown events
         const canvas = gl.domElement;
         const handleClick = (event) => onClick(event, canvas, camera);
@@ -85,6 +92,25 @@ export default function PinTool({ pointsRef, activeTool }) {
             canvas.removeEventListener('keydown', handleKeyDown);
         };
     }, [camera, gl, onClick]);
+
+    useEffect(() => {
+        // Update the store with the new members
+        const measures = useStore.getState().pinpoints;
+        if (!measures) return;
+
+        // Convert the flat array to an array of 3D vectors
+        const pinPoints = Array.from(
+            { length: Math.ceil(measures.length / 3) },
+            (_, index) => new THREE.Vector3(
+                measures[index * 3],
+                measures[index * 3 + 1],
+                measures[index * 3 + 2]
+            )
+        );
+
+        // Update the local state with the new pin points
+        setPinPoints(pinPoints);
+    }, [])
 
 
     return(

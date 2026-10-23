@@ -11,9 +11,6 @@ import useStore from '../useStore';
 
 // Point Cloud Renderer Component
 export default function PointCloudViewer({ fileUrl, active, pointsRef }) {
-  if (!fileUrl) return null; // If no file URL is provided, render nothing
-
-
   const [pointData, setPointData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null); 
@@ -23,24 +20,41 @@ export default function PointCloudViewer({ fileUrl, active, pointsRef }) {
 
   // Parses the LiDAR data
   useEffect(() => {
+    let cancelled = false;
+
+    if (!fileUrl) {
+      setPointData(null);
+      setError(null);
+      setLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
     async function parseLasFile() {
       try {
         setLoading(true);
+	      setPointData(null);
 	      //Load and Parse binary .las/.laz file
-        const source = fileUrl instanceof ArrayBuffer ?
-        fileUrl.slice(0) : fileUrl;
+        const source = fileUrl instanceof ArrayBuffer ? fileUrl.slice(0) : fileUrl;
         const data = await load(source, LASLoader);
+        if (cancelled) return;
         setPointData(data);
         setError(null);
       } catch (err) {
+        if (cancelled) return;
         console.error("Failed to parse LAS file:", err);
         setError("Error parsing LiDAR file format.");
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
     parseLasFile();
+
+    return () => {
+      cancelled = true;
+    };
   }, [fileUrl]);
 
 
@@ -61,17 +75,17 @@ export default function PointCloudViewer({ fileUrl, active, pointsRef }) {
 	    // Handle RGB colors if they exist in the point cloud attributes
       geo.setAttribute('color', new THREE.BufferAttribute(useStore.getState().colors, 3));
     } else if (pointData.attributes.COLOR_0 && active === 'base') {
-      const colors = pointData.attributes.COLOR_0.value;
-      // Normalize values if they are 16-bit integers instead of floats (0.0 - 1.0)
-      const normalizedColors = pointData.attributes.COLOR_0.type === 5123 
-        ? Float32Array.from(colors, v => v / 65535) 
-        : colors;
-      // Structure from file is rgba removes a
-      const remove4s = normalizedColors.filter((_, index) => (index + 1) % 4 !== 0);
-        
+      const sourceColors = pointData.attributes.COLOR_0.value;
+      const colors = new Float32Array((sourceColors.length / 4) * 3);
+      for (let sourceIndex = 0, colorIndex = 0; sourceIndex < sourceColors.length; sourceIndex += 4) {
+        colors[colorIndex++] = sourceColors[sourceIndex] / 255;
+        colors[colorIndex++] = sourceColors[sourceIndex + 1] / 255;
+        colors[colorIndex++] = sourceColors[sourceIndex + 2] / 255;
+      }
+
       // Set color value for attribute and global state
-      geo.setAttribute('color', new THREE.BufferAttribute(remove4s, 3));
-      useStore.setState({ colors: remove4s });
+      geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      useStore.setState({ colors: colors });
 
       // Examples uses of the color functions
       colorCircle(geo, [322289, 4262576, 0], 50, [1, 0, 0]);
@@ -90,7 +104,7 @@ export default function PointCloudViewer({ fileUrl, active, pointsRef }) {
     return geo;
   }, [pointData, active, rgbMinMax]);
 
-  if (loading || error || !geometry) return null;  // Handle loading status via standard React UI overhead
+  if (!fileUrl || loading || error || !geometry) return null;
 
   return (
     <points ref={pointsRef} geometry={geometry} >

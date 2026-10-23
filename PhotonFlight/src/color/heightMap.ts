@@ -8,7 +8,7 @@ type RgbMinMax = {
 
 export function applyHeightMapColor(
   geo: THREE.BufferGeometry,
-  positions: Array<number>,
+  positions: Float32Array,
   rgbMinMax: RgbMinMax
 ): void {
       // Find minimum and maximum z values for gradient mapping

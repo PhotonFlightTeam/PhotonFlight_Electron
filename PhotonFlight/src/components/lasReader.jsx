@@ -23,7 +23,6 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
   const [fileSource, setFileSource] = useState(initialFileUrl);
   const [zoom, setZoom] = useState(180);
   const [activeTool, setActiveTool] = useState('Select');
-  const canvasRef = useRef();
   const pointsRef = useRef();
 
   useEffect(() => {
@@ -34,8 +33,7 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
       if (buffer) { 
         const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
         setFileSource(arrayBuffer);
-        useStore.setState({ colors: null, positions: null, measures: null});
-        setKey(prevKey => prevKey + 1); // Force re-render of PointCloud Viewer
+        useStore.setState({ colors: null, positions: null, measures: null, pinpoints: null });
       }
     });
 
@@ -51,26 +49,25 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
       offImport();
       offExport();
     };
-  }, []); // Wtf even is this line dawg. Like Legit. 
+  }, []);
 
   const handleChange = (event) => {
     setActive(event.target.value); 
     useStore.setState({ colors: null }); // Reset colors to trigger re-render
-    setKey(prevKey => prevKey + 1); // Force re-render of PointCloudViewer
+    setKey(prevKey => prevKey + 1);
   };
 
   return (
     <div className="las-viewer">
       <Canvas 
-      ref={canvasRef}
       camera={{ position: [0, 10, 50], fov: 60 }}
       key={key}>
         <ambientLight intensity={1.5} />
         <pointLight position={[10, 10, 10]} />
         
         <PointCloudViewer pointsRef={pointsRef} fileUrl={fileSource} active={active} />
-        <MeasureTool pointsRef={pointsRef} activeTool={activeTool} />
-        <PinTool pointsRef={pointsRef} activeTool={activeTool} />
+        <MeasureTool pointsRef={pointsRef} activeTool={activeTool} fileUrl={fileSource} />
+        <PinTool pointsRef={pointsRef} activeTool={activeTool} fileUrl={fileSource} />
         <ViewControls zoom={zoom} setZoom={setZoom} />
 
         <GizmoHelper alignment="bottom-left" margin={[80, 80]}>

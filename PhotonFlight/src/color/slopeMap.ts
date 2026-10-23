@@ -7,9 +7,10 @@ type RgbMinMax = {
   max: [number, number, number];
 };
 
-function getSteepestSlopesIndexed(points: Array<number>, searchRadius = 0.25) {
+function getSteepestSlopesIndexed(points: Float32Array, searchRadius = 0.25): Float32Array {
+
   const n = points.length;
-  const steepestSlopes = new Array(n/3).fill(0);
+  const steepestSlopes = new Float32Array(n / 3);
 
   // Initialize KDBush using the X and Y coordinates for spatial indexing
   const index = new KDBush(n/3);
@@ -40,25 +41,22 @@ function getSteepestSlopesIndexed(points: Array<number>, searchRadius = 0.25) {
         maxSlope = slope;
       }
     }
-    steepestSlopes[i / 3] = maxSlope;
+    steepestSlopes[i / 3] = maxSlope / (maxSlope + 2);
   }
-
+  
   return steepestSlopes;
 }
 
 
 export function applySlopeMapColor(
   geo: THREE.BufferGeometry,
-  positions: Array<number>,
+  positions: Float32Array,
   rgbMinMax: RgbMinMax
 ): void {
 
       // Create a color gradient based on slope if no RGB data is present
       const colors = new Float32Array(positions.length);
-      let slopes = getSteepestSlopesIndexed(positions);
-
-   
-      slopes = slopes.map(val => (val/2) / ((val/2) + 1));
+      const slopes = getSteepestSlopesIndexed(positions);
       
 
       for (let i = 0; i < colors.length; i += 3) { // Set colors based on normalized height

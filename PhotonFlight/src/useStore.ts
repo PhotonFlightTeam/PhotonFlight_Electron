@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 
 interface State {
-  colors: Array<number> | null;
-  positions: Array<number> | null;
+  colors: Float32Array | null;
+  positions: Float32Array | null;
   measures: Array<number> | null;
   pinpoints: Array<number> | null;
   user: string | null;
