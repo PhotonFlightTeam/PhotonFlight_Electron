@@ -16,7 +16,7 @@ export default function PointCloudViewer({ fileUrl, active, pointsRef }) {
   const [error, setError] = useState(null); 
 	// min is the value at the minimum point, max is the val at maximum point
 	// NOT to be confused with min and max of RGB Color Space
-  const [rgbMinMax, setRgbMinMax] = useState({ min: [0,1,0], max: [1,0,0] });
+  const [rgbMinMax, setRgbMinMax] = useState({ min: useStore.getState().min, max: useStore.getState().max });
 
   // Parses the LiDAR data
   useEffect(() => {

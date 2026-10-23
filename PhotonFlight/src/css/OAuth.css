@@ -1,0 +1,54 @@
+.oauth-page {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    box-sizing: border-box;
+    padding: 2rem;
+    background: linear-gradient(
+        135deg,
+        rgba(var(--oauth-min-color), 0.18),
+        rgba(var(--oauth-max-color), 0.18)
+    );
+}
+
+.oauth-card {
+    width: min(100%, 28rem);
+    box-sizing: border-box;
+    padding: 2.5rem;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 20px;
+    background:
+        linear-gradient(
+            135deg,
+            rgba(var(--oauth-min-color), 0.3),
+            rgba(var(--oauth-max-color), 0.3)
+        ),
+        rgba(255, 255, 255, 0.78);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+.oauth-card h1 {
+    margin: 0 0 1.75rem;
+}
+
+.oauth-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem;
+}
+
+.oauth-actions button {
+    padding: 0.7rem 1.2rem;
+    border: 1px solid rgba(0, 0, 0, 0.16);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.85);
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.oauth-actions button:hover {
+    background: #fff;
+}
