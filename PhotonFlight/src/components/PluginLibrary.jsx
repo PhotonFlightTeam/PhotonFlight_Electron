@@ -11,7 +11,7 @@ import ToolTip from '@mui/material/Tooltip';
 // import './pluginLibrary.css'; // TODO: Finish pluginLibrary.css.
 
 // Plugin icon: falls back to the first letter of the name when there's no image
-const PluginIcon = ({plugin, className }) => (
+export const PluginIcon = ({plugin, className }) => (
     <Avatar className={className} src={plugin.icon ?? undefined} alt={plugin.name}>
         {plugin.name.charAt(0).toUpperCase()}
     </Avatar>

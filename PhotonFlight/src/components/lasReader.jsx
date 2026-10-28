@@ -76,9 +76,9 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
         <PinTool pointsRef={pointsRef} activeTool={activeTool} fileUrl={fileSource} />
         <ViewControls zoomRequest={zoomRequest} setZoom={setZoom} />
 
-        <GizmoHelper alignment="bottom-left" margin={[80, 80]}>
+        {/* <GizmoHelper alignment="bottom-left" margin={[80, 80]}>
           <GizmoViewport axisColors={['#ff3653', '#8adb00', '#2c8fff']} labelColor="white" />
-        </GizmoHelper>
+        </GizmoHelper> */}
       </Canvas>
       <div className="tool-bar">
         <ToolBar activeTool={activeTool} setActiveTool={setActiveTool} />

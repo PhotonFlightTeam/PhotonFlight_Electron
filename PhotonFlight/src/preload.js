@@ -22,6 +22,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('user-signed-out', handler);
     return () => ipcRenderer.removeListener('user-signed-out', handler);
   },
+  onSettingsOpened: (callback) => {
+    const handler = () => callback();
+    ipcRenderer.on('settings-opened', handler);
+    return () => ipcRenderer.removeListener('settings-opened', handler);
+  },
   // Request file system operations from main.js
   readFile: (filePath) => ipcRenderer.invoke('read-file', filePath),
   saveFile: (filePath, data) => ipcRenderer.invoke('save-file', filePath, data),

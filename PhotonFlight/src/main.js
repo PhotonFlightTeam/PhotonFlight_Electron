@@ -152,6 +152,18 @@ app.whenReady().then(() => {
       ] 
 
     },
+    {
+      label: 'Options', 
+      submenu: [
+        {
+          label: 'Settings',
+          click: (menuItem, browserWindow) => {
+            // Optionally, you can also refresh the renderer to reflect the sign-out state
+            browserWindow?.webContents.send('settings-opened');
+          }
+        }
+      ]
+    }
     // TODO: other menus (Edit, View, Window, etc.)
   ];
   
