@@ -19,6 +19,8 @@ export default function OAuth() {
         console.log('User signed in:', name);
         useStore.setState({
             user: isSignedIn ? name : null,
+            username: isSignedIn ? user?.username : null,
+            id: isSignedIn ? user?.id : null,
         });
     }, [isSignedIn, user]);
 
@@ -28,12 +30,16 @@ export default function OAuth() {
                 void signOut().catch(console.error);
                 useStore.setState({
                     user: null,
+                    username: null, 
+                    id: null,
                 });
             }
             else {
                 setName(null);
                 useStore.setState({
                     user: null,
+                    username: null,
+                    id: null,
                 });
             }
         });
@@ -43,11 +49,13 @@ export default function OAuth() {
         setName('Guest');
         useStore.setState({
             user: 'Guest',
+            username: 'Guest',
+            id: null,
         })
     }
 
     if (!isLoaded) return null;
-    if (name) return <LasViewer fileUrl="./CO_test1.laz" />;
+    if (name) return <LasViewer />;
 
     const toCssRgb = (color) => color
         ? color.map(value => Math.round(Math.max(0, Math.min(1, value)) * 255)).join(', ')
