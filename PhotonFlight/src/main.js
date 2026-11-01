@@ -5,6 +5,34 @@ import fs from 'node:fs/promises';
 import { registerPluginHandlers } from './pluginManager';
 import { createClerkBridge } from '@clerk/electron';
 import { storage } from '@clerk/electron/storage';
+import { CoreSupervisor, coreLaunchOptions } from './coreSupervisor';
+
+const coreSupervisor = new CoreSupervisor({
+  launch: coreLaunchOptions({ appPath: app.getAppPath(), resourcesPath: process.resourcesPath, isPackaged: app.isPackaged }),
+});
+
+coreSupervisor.on('status', (status) => {
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (!window.isDestroyed()) window.webContents.send('core:status-changed', status);
+  }
+});
+coreSupervisor.on('log', ({ stream, text }) => {
+  (stream === 'stderr' ? console.error : console.log)(`[PhotonCore] ${text.trimEnd()}`);
+});
+
+let quitAfterCoreStops = false;
+app.on('before-quit', (event) => {
+  if (quitAfterCoreStops) return;
+  event.preventDefault();
+  coreSupervisor.dispose().then(() => {
+    clerk.cleanup();
+    quitAfterCoreStops = true;
+    app.quit();
+  }).catch((error) => {
+    console.error('Failed to stop PhotonCore:', error);
+    dialog.showErrorBox('PhotonCore could not stop', error.message);
+  });
+});
 
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -46,6 +74,22 @@ const createWindow = () => {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 app.whenReady().then(() => {
+  const assertCoreSender = (event) => {
+    const window = BrowserWindow.fromWebContents(event.sender);
+    if (!window || event.senderFrame !== event.sender.mainFrame) {
+      throw new Error('Core controls are only available to an application window.');
+    }
+  };
+  ipcMain.handle('core:get-status', (event) => {
+    assertCoreSender(event);
+    return coreSupervisor.getStatus();
+  });
+  for (const action of ['start', 'stop', 'restart']) {
+    ipcMain.handle(`core:${action}`, (event) => {
+      assertCoreSender(event);
+      return coreSupervisor[action]();
+    });
+  }
   
   // Setup File System IPC handlers for Read/Write Processes
   ipcMain.handle('read-file', async (event, filePath) => {
@@ -70,6 +114,15 @@ app.whenReady().then(() => {
   registerPluginHandlers();
 
   const template = [
+    {
+      label: 'Core',
+      submenu: ['start', 'stop', 'restart'].map((action) => ({
+        label: `${action[0].toUpperCase()}${action.slice(1)} PhotonCore`,
+        click: () => coreSupervisor[action]().catch((error) => {
+          dialog.showErrorBox('PhotonCore process error', error.message);
+        }),
+      })),
+    },
     {
       label: 'File',
       submenu: [
@@ -171,6 +224,10 @@ app.whenReady().then(() => {
   Menu.setApplicationMenu(menu);
 
   createWindow();
+  if (!started) coreSupervisor.start().catch((error) => {
+    console.error('PhotonCore startup failed:', error);
+    dialog.showErrorBox('PhotonCore startup failed', `${error.message}\n\nBuild Core with gradlew.bat installDist or set PHOTON_CORE_HOME to an installed distribution.`);
+  });
 
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
@@ -184,7 +241,6 @@ app.whenReady().then(() => {
 // Quit when all windows are closed, except on macOS.
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
-    clerk.cleanup();
     app.quit();
   }
 });

@@ -90,3 +90,6 @@ typings/
 
 # Electron-Forge
 out/
+
+# JetBrains IDE Cache
+.idea/

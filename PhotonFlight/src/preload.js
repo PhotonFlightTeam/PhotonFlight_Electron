@@ -8,6 +8,17 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  core: {
+    getStatus: () => ipcRenderer.invoke('core:get-status'),
+    start: () => ipcRenderer.invoke('core:start'),
+    stop: () => ipcRenderer.invoke('core:stop'),
+    restart: () => ipcRenderer.invoke('core:restart'),
+    onStatusChanged: (callback) => {
+      const handler = (_event, status) => callback(status);
+      ipcRenderer.on('core:status-changed', handler);
+      return () => ipcRenderer.removeListener('core:status-changed', handler);
+    },
+  },
   // Remove listeners on cleanup
   onFileImported: (callback) => { const handler = (_event, filePath) => callback(filePath);
     ipcRenderer.on('file-imported', handler);
