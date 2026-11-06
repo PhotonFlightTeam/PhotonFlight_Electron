@@ -1,0 +1,139 @@
+.plugin-library {
+	display: flex;
+	flex-direction: column;
+	height: 70vh;
+}
+
+.plugin-library-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 8px 16px;
+	border-bottom: 1px solid #ddd;
+	font-weight: bold;
+}
+
+.plugin-library-body {
+	display: flex;
+	flex: 1;
+	min-height: 0;
+}
+
+.plugin-sidebar {
+	width: 280px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 12px;
+	border-right: 1px solid #ddd;
+}
+
+.plugin-list {
+	flex: 1;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.plugin-card {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px;
+	border: 1px solid #ddd;
+	border-radius: 8px;
+	cursor: pointer;
+}
+
+.plugin-card:hover {
+	background: #f5f5f5;
+}
+
+.plugin-card.selected {
+	border-color: #1976d2;
+	background: #e8f1fb;
+}
+
+.plugin-card.disabled {
+	opacity: 0.55;
+}
+
+.plugin-card-text {
+	flex: 1;
+	min-width: 0;
+}
+
+.plugin-card-name {
+	font-weight: bold;
+}
+
+.plugin-card-desc,
+.plugin-card-author {
+	font-size: 12px;
+	color: #666;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.plugin-card-actions {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+/* Two classes deep so these beat MUI's default Avatar size */
+.plugin-card .plugin-icon-small {
+	width: 36px;
+	height: 36px;
+}
+
+.plugin-details-header .plugin-icon-large {
+	width: 64px;
+	height: 64px;
+}
+
+.plugin-details {
+	flex: 1;
+	padding: 16px 24px;
+	overflow-y: auto;
+}
+
+.plugin-details-header {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	padding-bottom: 16px;
+	border-bottom: 1px solid #ddd;
+}
+
+.plugin-details-name {
+	font-size: 20px;
+	font-weight: bold;
+}
+
+.plugin-version {
+	font-size: 12px;
+	color: #888;
+	font-weight: normal;
+	margin-left: 6px;
+}
+
+.plugin-details h3 {
+	margin: 16px 0 6px;
+}
+
+.plugin-empty {
+	color: #888;
+	padding: 12px;
+	text-align: center;
+}
+
+.plugin-error {
+	background: #fdecea;
+	color: #b3261e;
+	padding: 8px 12px;
+	border-radius: 4px;
+	margin-bottom: 12px;
+}

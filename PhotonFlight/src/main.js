@@ -2,7 +2,7 @@ import { app, BrowserWindow, Menu, dialog, ipcMain } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import fs from 'node:fs/promises';
-import { registerPluginHandlers } from './pluginManager';
+import { registerPluginHandlers, importPlugin } from './pluginManager';
 import { createClerkBridge } from '@clerk/electron';
 import { storage } from '@clerk/electron/storage';
 
@@ -125,7 +125,7 @@ app.whenReady().then(() => {
           click: async (menuItem, browserWindow) => {
             if (!browserWindow) return;
             try {
-              const id = await importPlugins(browserWindow);
+              const id = await importPlugin(browserWindow);
               if (id) {
                 // Refresh the library and show it so user sees the new plugin
                 browserWindow.webContents.send('plugins-changed');
