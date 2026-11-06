@@ -109,6 +109,13 @@ app.whenReady().then(() => {
     }
   });
 
+  let databaseMenuItem;
+  ipcMain.on('database-menu-enabled', (_event, enabled) => {
+    if (typeof enabled === 'boolean' && databaseMenuItem) {
+      databaseMenuItem.enabled = enabled;
+    }
+  });
+
   registerPluginHandlers();
 
   const template = [
@@ -146,6 +153,13 @@ app.whenReady().then(() => {
               // TODO: Send the destination path to the renderer process to handle saving
               browserWindow.webContents.send('file-exported', filePath);
             }
+          }
+        },
+        {
+          label: 'Database',
+          enabled: false,
+          click: (_menuItem, browserWindow) => {
+            browserWindow?.webContents.send('open-database-browser');
           }
         },
         { type: 'separator' },
@@ -210,10 +224,12 @@ app.whenReady().then(() => {
   ];
   
   const menu = Menu.buildFromTemplate(template);
+  databaseMenuItem = menu.items.find((item) => item.label === 'File')?.submenu?.items
+    .find((item) => item.label === 'Database');
   Menu.setApplicationMenu(menu);
 
-  startPythonBackend(); // Start the Python backend when the app is ready
   createWindow();
+  startPythonBackend(); // Start the Python backend when the app is ready
 
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.

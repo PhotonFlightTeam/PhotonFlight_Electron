@@ -22,6 +22,7 @@ export default function OAuth() {
             username: isSignedIn ? user?.username : null,
             id: isSignedIn ? user?.id : null,
         });
+        window.electronAPI?.setDatabaseMenuEnabled?.(Boolean(isSignedIn && user?.id));
     }, [isSignedIn, user]);
 
     useEffect(() => {
@@ -33,6 +34,7 @@ export default function OAuth() {
                     username: null, 
                     id: null,
                 });
+                window.electronAPI?.setDatabaseMenuEnabled?.(false);
             }
             else {
                 setName(null);
@@ -41,6 +43,7 @@ export default function OAuth() {
                     username: null,
                     id: null,
                 });
+                window.electronAPI?.setDatabaseMenuEnabled?.(false);
             }
         });
     }, [name, signOut]);
@@ -52,9 +55,10 @@ export default function OAuth() {
             username: 'Guest',
             id: null,
         })
+        window.electronAPI?.setDatabaseMenuEnabled?.(false);
     }
 
-    if (!isLoaded) return null;
+    //if (!isLoaded) return null;
     if (name) return <LasViewer />;
 
     const toCssRgb = (color) => color

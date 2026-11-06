@@ -14,6 +14,7 @@ import Select from '@mui/material/Select';
 import ViewControls from './ViewControls';
 import ToolBar from './ToolBar';
 import PinTool from './Pin';
+import DatabaseBrowser from './DatabaseBrowser';
 
 
 // Parent Wrapper providing the WebGL Viewport Context
@@ -65,6 +66,7 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
 
   return (
     <div className="las-viewer">
+      <DatabaseBrowser />
       <Canvas 
       camera={{ position: [0, 10, 50], fov: 60 }}
       key={key}>

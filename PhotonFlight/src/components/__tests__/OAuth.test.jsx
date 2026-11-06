@@ -35,6 +35,7 @@ describe('OAuth', () => {
         callbacks.settings = callback;
         return vi.fn();
       }),
+      setDatabaseMenuEnabled: vi.fn(),
     };
   });
 
@@ -44,6 +45,24 @@ describe('OAuth', () => {
     expect(screen.getByRole('heading', { name: 'Photon Flight' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sign In' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Offline Mode' })).toBeInTheDocument();
+    expect(window.electronAPI.setDatabaseMenuEnabled).toHaveBeenLastCalledWith(false);
+  });
+
+  it('enables the database menu for an authenticated Clerk user', () => {
+    clerkMocks.user = {
+      isLoaded: true,
+      isSignedIn: true,
+      user: {
+        id: 'user_123',
+        fullName: 'Pilot',
+        username: 'pilot',
+        primaryEmailAddress: { emailAddress: 'pilot@example.com' },
+      },
+    };
+
+    render(<OAuth />);
+
+    expect(window.electronAPI.setDatabaseMenuEnabled).toHaveBeenLastCalledWith(true);
   });
 
   it('opens the viewer in offline mode and clears guest state on sign-out', async () => {

@@ -6,6 +6,32 @@ To run the application:
 2. run npm install  
 3. run npm start
 
+## Database Lidar Browser
+
+The File > Database menu is enabled for signed-in Clerk users and disabled in
+offline/guest mode. The browser requests lidar records through the local API;
+the API verifies the Clerk session token and matches its verified email to
+`app_user.email` before returning only records uploaded by that database user.
+
+The backend reads `VITE_CLERK_PUBLISHABLE_KEY` from `PhotonFlight/.env` and
+derives the issuer and JWKS URL from the Clerk domain encoded in that key.
+Optionally override these with `CLERK_ISSUER` and `CLERK_JWKS_URL` in
+`PhotonFlight/src/backend/.env`. In Clerk, create a JWT template named
+`photonflight` with these claims:
+
+```json
+{
+  "email": "{{user.primary_email_address}}",
+  "email_verified": "{{user.email_verified}}"
+}
+```
+
+The verification claim must use Clerk's `user.email_verified` shortcode and
+evaluate to `true`; `user.primary_email_address_verified` is not a supported
+shortcode. The API rejects tokens without both claims or without a verified
+email. Each Clerk email must match exactly one `app_user.email` row
+(case-insensitive).
+
 ## Movement Controls:  
 Movement can be done with both mouse and keyboard inputs. 
     

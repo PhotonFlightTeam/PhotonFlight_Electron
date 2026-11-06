@@ -16,4 +16,14 @@ class MapRead(MapCreate):
     map_id: int
     created_by: int | None
     created_at: datetime
+
+class LidarRead(BaseModel):
+    lidar_id: int
+    file_location: str | None
+    file_format: str | None
+    uploaded_at: datetime | None
+    latitude: float | None
+    longitude: float | None
+    map_id: int
+    map_name: str | None
     
