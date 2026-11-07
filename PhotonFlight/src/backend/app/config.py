@@ -3,8 +3,10 @@ import binascii
 from functools import lru_cache
 from pathlib import Path
 import re
-from pydantic import Field, PositiveInt, SecretStr, model_validator
+
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
 
 PROJECT_ENV = Path(__file__).resolve().parents[3] / ".env"
 BACKEND_ENV = Path(__file__).resolve().parents[1] / ".env"
@@ -36,8 +38,6 @@ class Settings(BaseSettings):
         extra="ignore",
     )
     database_url: SecretStr | None = None
-    dev_api_token: SecretStr | None = None
-    dev_user_id: PositiveInt | None = None
     clerk_issuer: str | None = None
     clerk_jwks_url: str | None = None
     clerk_publishable_key: str | None = Field(
