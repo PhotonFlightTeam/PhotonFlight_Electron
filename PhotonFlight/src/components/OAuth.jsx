@@ -1,29 +1,83 @@
 import { useEffect, useState } from 'react';
-import { SignInButton, useUser, useClerk } from '@clerk/electron/react';
+import { SignInButton, useAuth, useUser, useClerk } from '@clerk/electron/react';
 import LasViewer from './lasReader.jsx';
 import useStore from '../useStore';
 import '../css/OAuth.css';
 
+const API_URL = 'http://127.0.0.1:8000';
+const CLERK_JWT_TEMPLATE = 'photonflight';
+
 export default function OAuth() {
     const { isLoaded, isSignedIn, user } = useUser();
+    const { getToken } = useAuth();
     const { signOut } = useClerk();
     const [name, setName] = useState(null);
+    const [provisionError, setProvisionError] = useState(null);
     const min = useStore(state => state.min);
     const max = useStore(state => state.max);
 
     useEffect(() => {
-        setName(user?.fullName
+        const displayName = user?.fullName
             ?? user?.primaryEmailAddress?.emailAddress
-            ?? null);
+            ?? null;
+        const email = user?.primaryEmailAddress?.emailAddress;
 
-        console.log('User signed in:', name);
+        setName(displayName);
         useStore.setState({
-            user: isSignedIn ? name : null,
+            user: isSignedIn ? displayName : null,
             username: isSignedIn ? user?.username : null,
             id: isSignedIn ? user?.id : null,
         });
-        window.electronAPI?.setDatabaseMenuEnabled?.(Boolean(isSignedIn && user?.id));
-    }, [isSignedIn, user]);
+
+        if (!isSignedIn || !user?.id) {
+            setProvisionError(null);
+            window.electronAPI?.setDatabaseMenuEnabled?.(false);
+            return undefined;
+        }
+
+        let isCurrent = true;
+        setProvisionError(null);
+        window.electronAPI?.setDatabaseMenuEnabled?.(false);
+
+        const registerUser = async () => {
+            try {
+                if (!displayName || !email) {
+                    throw new Error('Your Clerk account must have a name and primary email address.');
+                }
+
+                const token = await getToken({ template: CLERK_JWT_TEMPLATE });
+                if (!token) {
+                    throw new Error('Clerk did not provide a session token.');
+                }
+
+                const response = await fetch(`${API_URL}/api/users/me`, {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ name: displayName, email }),
+                });
+                if (!response.ok) {
+                    const detail = await response.json().catch(() => null);
+                    throw new Error(detail?.detail ?? `Could not register the user (${response.status}).`);
+                }
+
+                if (isCurrent) {
+                    window.electronAPI?.setDatabaseMenuEnabled?.(true);
+                }
+            } catch (error) {
+                if (isCurrent) {
+                    setProvisionError(error instanceof Error ? error.message : String(error));
+                }
+            }
+        };
+
+        void registerUser();
+        return () => {
+            isCurrent = false;
+        };
+    }, [getToken, isSignedIn, user]);
 
     useEffect(() => {
         return window.electronAPI.onSignOutRequested(() => {
@@ -58,8 +112,19 @@ export default function OAuth() {
         window.electronAPI?.setDatabaseMenuEnabled?.(false);
     }
 
-    //if (!isLoaded) return null;
-    if (name) return <LasViewer />;
+    if (!isLoaded) return null;
+    if (name) {
+        return (
+            <>
+                {provisionError && (
+                    <div role="alert">
+                        Could not connect your account to the database: {provisionError}
+                    </div>
+                )}
+                <LasViewer />
+            </>
+        );
+    }
 
     const toCssRgb = (color) => color
         ? color.map(value => Math.round(Math.max(0, Math.min(1, value)) * 255)).join(', ')

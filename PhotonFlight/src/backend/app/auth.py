@@ -10,7 +10,7 @@ from .database import get_connection
 bearer = HTTPBearer(auto_error=False)
 
 
-def get_current_user_email(
+def get_current_user_sub(
     credentials: Annotated[
         HTTPAuthorizationCredentials | None, Depends(bearer)
     ],
@@ -39,7 +39,7 @@ def get_current_user_email(
             signing_key,
             algorithms=["RS256"],
             issuer=settings.clerk_issuer,
-            options={"require": ["sub", "email", "email_verified"]},
+            options={"require": ["sub"]},
         )
     except (jwt.PyJWTError, jwt.PyJWKClientError):
         raise HTTPException(
@@ -48,40 +48,31 @@ def get_current_user_email(
             headers={"WWW-Authenticate": "Bearer"},
         ) from None
 
-    email = claims.get("email")
-    email_verified = claims.get("email_verified")
-    if (
-        not isinstance(email, str)
-        or not email.strip()
-        or not (
-            email_verified is True
-            or isinstance(email_verified, str)
-            and email_verified.lower() == "true"
-        )
-    ):
+    clerk_user_id = claims.get("sub")
+    if not isinstance(clerk_user_id, str) or not clerk_user_id.strip():
         raise HTTPException(
-            403,
-            "The Clerk JWT template must include a non-empty email claim and "
-            "email_verified: true. Use {{user.primary_email_address}} and "
-            "{{user.email_verified}} in the photonflight template, and verify "
-            "the email address in Clerk.",
+            401,
+            "Invalid or expired Clerk session token.",
+            headers={"WWW-Authenticate": "Bearer"},
         )
-    return email.strip()
+    return clerk_user_id.strip()
 
 
 def get_current_user_id(
-    user_email: Annotated[str, Depends(get_current_user_email)],
+    clerk_user_id: Annotated[str, Depends(get_current_user_sub)],
     connection: Annotated[Connection[dict[str, int]], Depends(get_connection)],
 ) -> int:
     user_rows = connection.execute(
-        "SELECT user_id FROM public.app_user WHERE lower(email) = lower(%s)",
-        (user_email,),
+        "SELECT user_id FROM public.app_user WHERE clerk_user_id = %s",
+        (clerk_user_id,),
     ).fetchall()
     if len(user_rows) > 1:
-        raise HTTPException(409, "Clerk email matches multiple database users.")
+        raise HTTPException(409, "Clerk ID matches multiple database users.")
     if not user_rows:
         raise HTTPException(
             404,
-            "No database user is associated with this Clerk email.",
+            "No database user is associated with this Clerk ID.",
         )
     return user_rows[0]["user_id"]
+
+

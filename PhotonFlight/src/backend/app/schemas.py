@@ -67,4 +67,9 @@ class MapRead(MapCreate):
     map_id: int
     created_by: int | None
     created_at: datetime
+
+class UserCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True, allow_inf_nan=False)
+    name: str = Field(min_length=1, max_length=150)
+    email: str = Field(min_length=1, max_length=150)
     

@@ -5,11 +5,13 @@ import useStore from '../../useStore';
 
 const clerkMocks = vi.hoisted(() => ({
   user: { isLoaded: true, isSignedIn: false, user: null },
+  getToken: vi.fn(),
   signOut: vi.fn(),
 }));
 
 vi.mock('@clerk/electron/react', () => ({
   SignInButton: ({ children }) => children,
+  useAuth: () => ({ getToken: clerkMocks.getToken }),
   useUser: () => clerkMocks.user,
   useClerk: () => ({ signOut: clerkMocks.signOut }),
 }));
@@ -24,7 +26,12 @@ describe('OAuth', () => {
   beforeEach(() => {
     callbacks = {};
     clerkMocks.user = { isLoaded: true, isSignedIn: false, user: null };
+    clerkMocks.getToken.mockReset().mockResolvedValue('session-token');
     clerkMocks.signOut.mockReset().mockResolvedValue(undefined);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ clerk_user_id: 'user_123', name: 'Pilot', email: 'pilot@example.com' }),
+    }));
     useStore.setState({ user: null, min: [0, 1, 0], max: [1, 0, 0] });
     window.electronAPI = {
       onSignOutRequested: vi.fn((callback) => {
@@ -48,7 +55,7 @@ describe('OAuth', () => {
     expect(window.electronAPI.setDatabaseMenuEnabled).toHaveBeenLastCalledWith(false);
   });
 
-  it('enables the database menu for an authenticated Clerk user', () => {
+  it('registers an authenticated Clerk user before enabling the database menu', async () => {
     clerkMocks.user = {
       isLoaded: true,
       isSignedIn: true,
@@ -62,7 +69,46 @@ describe('OAuth', () => {
 
     render(<OAuth />);
 
-    expect(window.electronAPI.setDatabaseMenuEnabled).toHaveBeenLastCalledWith(true);
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith(
+        'http://127.0.0.1:8000/api/users/me',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: expect.stringMatching(/^Bearer /),
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ name: 'Pilot', email: 'pilot@example.com' }),
+        },
+      );
+      expect(window.electronAPI.setDatabaseMenuEnabled).toHaveBeenLastCalledWith(true);
+    });
+    expect(clerkMocks.getToken).toHaveBeenCalledWith({ template: 'photonflight' });
+  });
+
+  it('keeps the database menu disabled and reports a registration failure', async () => {
+    clerkMocks.user = {
+      isLoaded: true,
+      isSignedIn: true,
+      user: {
+        id: 'user_123',
+        fullName: 'Pilot',
+        username: 'pilot',
+        primaryEmailAddress: { emailAddress: 'pilot@example.com' },
+      },
+    };
+    fetch.mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: async () => ({ detail: 'Database operation unavailable.' }),
+    });
+
+    render(<OAuth />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Could not connect your account to the database: Database operation unavailable.',
+    );
+    expect(window.electronAPI.setDatabaseMenuEnabled).toHaveBeenLastCalledWith(false);
   });
 
   it('opens the viewer in offline mode and clears guest state on sign-out', async () => {
