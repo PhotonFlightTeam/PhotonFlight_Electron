@@ -14,3 +14,5 @@ export const PointCloudService = new protoLoader.PointCloudService(
 
 /*export const shutdown = () =>
   unary<{}, { accepted: boolean; message: string }>(lifecycleClient, 'Shutdown', {}); */
+
+/*NEW COMMENT*/
