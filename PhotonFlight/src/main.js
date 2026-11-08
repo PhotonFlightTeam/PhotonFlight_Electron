@@ -1,12 +1,12 @@
-import { app, BrowserWindow, Menu, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import fs from 'node:fs/promises';
-import { registerPluginHandlers, importPlugin } from './pluginManager';
+import { registerPluginHandlers } from './pluginManager';
 import { createClerkBridge } from '@clerk/electron';
 import { storage } from '@clerk/electron/storage';
 import { CoreSupervisor, coreLaunchOptions } from './coreSupervisor';
-import { spawn } from 'node:child_process'
+import { spawn } from 'node:child_process';
 import { setupApplicationMenu } from './applicationMenu';
 
 const coreSupervisor = new CoreSupervisor({
@@ -22,21 +22,13 @@ coreSupervisor.on('log', ({ stream, text }) => {
   (stream === 'stderr' ? console.error : console.log)(`[PhotonCore] ${text.trimEnd()}`);
 });
 
-let quitAfterCoreStops = false;
-app.on('before-quit', (event) => {
-  if (quitAfterCoreStops) return;
-  event.preventDefault();
-  coreSupervisor.dispose().then(() => {
-    clerk.cleanup();
-    quitAfterCoreStops = true;
-    app.quit();
-  }).catch((error) => {
-    console.error('Failed to stop PhotonCore:', error);
-    dialog.showErrorBox('PhotonCore could not stop', error.message);
-  });
-});
-
 let themeMode = 'dark';
+let databaseMenuEnabled = false;
+
+const refreshApplicationMenu = () => setupApplicationMenu(themeMode, {
+  coreSupervisor,
+  databaseMenuEnabled,
+});
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -46,7 +38,25 @@ if (started) {
 const clerk = createClerkBridge({
   storage: storage(),
   renderer: { scheme: 'photonflight', host: 'renderer' },
-})
+});
+
+let quitAfterCoreStops = false;
+let quitInProgress = false;
+app.on('before-quit', (event) => {
+  if (quitAfterCoreStops || started) return;
+  event.preventDefault();
+  if (quitInProgress) return;
+  quitInProgress = true;
+  coreSupervisor.dispose().then(() => {
+    clerk.cleanup();
+    quitAfterCoreStops = true;
+    app.quit();
+  }).catch((error) => {
+    quitInProgress = false;
+    console.error('Failed to stop PhotonCore:', error);
+    dialog.showErrorBox('PhotonCore could not stop', error.message);
+  });
+});
 
 if (process.defaultApp && process.argv.length >= 2) {
   app.setAsDefaultProtocolClient('photonflight', process.execPath, [path.resolve(process.argv[1])]);
@@ -80,7 +90,14 @@ const startPythonBackend = () => {
 
   pythonProcess = spawn(backendPath, args, {
     cwd: isDev ? path.join(app.getAppPath(), 'src', 'backend') : undefined,
-    env: { ...process.env }
+    env: { ...process.env },
+    windowsHide: true,
+    shell: false
+  });
+
+  const child = pythonProcess;
+  child.on('close', () => {
+    if (pythonProcess === child) pythonProcess = null;
   });
 
   pythonProcess.on('error', (error) => {
@@ -122,6 +139,7 @@ const createWindow = () => {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 app.whenReady().then(() => {
+  if (started || quitInProgress || quitAfterCoreStops) return;
   const assertCoreSender = (event) => {
     const window = BrowserWindow.fromWebContents(event.sender);
     if (!window || event.senderFrame !== event.sender.mainFrame) {
@@ -159,107 +177,29 @@ app.whenReady().then(() => {
     }
   });
 
-  let databaseMenuItem;
   ipcMain.on('database-menu-enabled', (_event, enabled) => {
-    if (typeof enabled === 'boolean' && databaseMenuItem) {
-      databaseMenuItem.enabled = enabled;
+    if (typeof enabled === 'boolean') {
+      databaseMenuEnabled = enabled;
+      refreshApplicationMenu();
     }
   });
 
   registerPluginHandlers();
 
-  const template = [
-    {
-      label: 'Core',
-      submenu: ['start', 'stop', 'restart'].map((action) => ({
-        label: `${action[0].toUpperCase()}${action.slice(1)} PhotonCore`,
-        click: () => coreSupervisor[action]().catch((error) => {
-          dialog.showErrorBox('PhotonCore process error', error.message);
-        }),
-      })),
-    },
-    {
-      label: 'File',
-      submenu: [
-        {
-          label: 'Import',
-          click: async (menuItem, browserWindow) => {
-            if (!browserWindow) return;
-            const { canceled, filePaths } = await dialog.showOpenDialog(browserWindow, {
-              properties: ['openFile'],
-              filters: [
-                { name: 'LAS/LAZ Files', extensions: ['las', 'laz'] },
-                { name: 'All Files', extensions: ['*'] }
-              ]
-            });
-            if (!canceled && filePaths.length > 0) {
-              // Send the selected file path to the renderer process
-              browserWindow.webContents.send('file-imported', filePaths[0]);
-            }
-          }
-        },
-        {
-          label: 'Export',
-          click: async (menuItem, browserWindow) => {
-            if (!browserWindow) return;
-            const { canceled, filePath } = await dialog.showSaveDialog(browserWindow, {
-              filters: [
-                { name: 'LAS File', extensions: ['las'] },
-                { name: 'LAZ File', extensions: ['laz'] }
-              ]
-            });
-            if (!canceled && filePath) {
-              // TODO: Send the destination path to the renderer process to handle saving
-              browserWindow.webContents.send('file-exported', filePath);
-            }
-          }
-        },
-        { type: 'separator' },
-        { role: 'quit' }
-      ]
-    },
-
-    {
-      label: 'Plugins',
-      submenu: [
-        {
-          label: 'Library',
-          click: (menuItem, browserWindow) => {
-            browserWindow?.webContents.send('open-plugin-library');
-          }
-        },
-        {
-          label: 'Import...',
-          click: async (menuItem, browserWindow) => {
-            if (!browserWindow) return;
-            try {
-              const id = await importPlugins(browserWindow);
-              if (id) {
-                // Refresh the library and show it so user sees the new plugin
-                browserWindow.webContents.send('plugins-changed');
-                browserWindow.webContents.send('open-plugin-library');
-              }
-            } catch (error) {
-              dialog.showErrorBox('Plugin import failed', error.message);
-            }
-          }
-        }
-      ]
-    },
   ipcMain.handle('theme:get-mode', () => themeMode);
   ipcMain.handle('theme:set-mode', (_event, mode) => {
     if (mode !== 'dark' && mode !== 'light') return themeMode;
     themeMode = mode;
-    setupApplicationMenu(themeMode);
+    refreshApplicationMenu();
     return themeMode;
   });
   ipcMain.on('theme-mode-changed', (_event, mode) => {
     if (mode !== 'dark' && mode !== 'light') return;
     themeMode = mode;
-    setupApplicationMenu(themeMode);
+    refreshApplicationMenu();
   });
 
-  setupApplicationMenu(themeMode);
+  refreshApplicationMenu();
 
   createWindow();
   startPythonBackend(); // Start the Python backend when the app is ready
@@ -275,6 +215,10 @@ app.whenReady().then(() => {
       createWindow();
     }
   });
+}).catch((error) => {
+  console.error('Application startup failed:', error);
+  dialog.showErrorBox('Application startup failed', error.message);
+  app.quit();
 });
 
 // Quit when all windows are closed, except on macOS.
