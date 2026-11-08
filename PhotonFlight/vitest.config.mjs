@@ -7,7 +7,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/components/__tests__/setup.js'],
     env: {
-      VITE_CLERK_PUBLISHABLE_KEY: 'pk_test_component_tests',
+      VITE_CLERK_PUBLISHABLE_KEY: 'pk_test_aGVhbHRoeS1hbGllbi02MzQ2LmNsZXJrLmFjY291bnRzLmRldiQ',
     },
   },
 });

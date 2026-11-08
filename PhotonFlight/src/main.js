@@ -2,10 +2,12 @@ import { app, BrowserWindow, Menu, dialog, ipcMain } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import fs from 'node:fs/promises';
-import { registerPluginHandlers } from './pluginManager';
+import { registerPluginHandlers, importPlugin } from './pluginManager';
 import { createClerkBridge } from '@clerk/electron';
 import { storage } from '@clerk/electron/storage';
 import { CoreSupervisor, coreLaunchOptions } from './coreSupervisor';
+import { spawn } from 'node:child_process'
+import { setupApplicationMenu } from './applicationMenu';
 
 const coreSupervisor = new CoreSupervisor({
   launch: coreLaunchOptions({ appPath: app.getAppPath(), resourcesPath: process.resourcesPath, isPackaged: app.isPackaged }),
@@ -34,6 +36,7 @@ app.on('before-quit', (event) => {
   });
 });
 
+let themeMode = 'dark';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -47,6 +50,51 @@ const clerk = createClerkBridge({
 
 if (process.defaultApp && process.argv.length >= 2) {
   app.setAsDefaultProtocolClient('photonflight', process.execPath, [path.resolve(process.argv[1])]);
+}
+
+let pythonProcess = null;
+const isDev = !app.isPackaged;
+
+if (process.platform === 'linux' && process.env.XDG_SESSION_TYPE === 'wayland') {
+  app.commandLine.appendSwitch('disable-vulkan');
+}
+
+const startPythonBackend = () => {
+  let backendPath;
+  let args = [];
+
+  if (isDev) {
+    const backendDirectory = path.join(app.getAppPath(),
+      'src',
+      'backend');
+    backendPath = path.join(backendDirectory,
+      'venv',
+      process.platform === 'win32' ? 'Scripts' : 'bin',
+      process.platform === 'win32' ? 'uvicorn.exe' : 'uvicorn');
+    args = ['app.main:app', '--host', '127.0.0.1', '--port', '8000'];
+  } else {
+
+    backendPath = path.join(process.resourcesPath, 'backend_dist', 'main');
+    if (process.platform === 'win32') backendPath += '.exe';
+  }
+
+  pythonProcess = spawn(backendPath, args, {
+    cwd: isDev ? path.join(app.getAppPath(), 'src', 'backend') : undefined,
+    env: { ...process.env }
+  });
+
+  pythonProcess.on('error', (error) => {
+    console.error(`Failed to start Python backend at ${backendPath}:`, error);
+  });
+
+  // Log backend outputs to Electron's terminal
+  pythonProcess.stdout.on('data', (data) => {
+    console.log(`[Python Stdout]: ${data}`);
+  });
+
+  pythonProcess.stderr.on('data', (data) => {
+    console.error(`[Python Stderr]: ${data}`);
+  });
 }
 
 
@@ -90,7 +138,7 @@ app.whenReady().then(() => {
       return coreSupervisor[action]();
     });
   }
-  
+
   // Setup File System IPC handlers for Read/Write Processes
   ipcMain.handle('read-file', async (event, filePath) => {
     try {
@@ -108,6 +156,13 @@ app.whenReady().then(() => {
     } catch (error) {
       console.error("Failed to save file:", error);
       return false;
+    }
+  });
+
+  let databaseMenuItem;
+  ipcMain.on('database-menu-enabled', (_event, enabled) => {
+    if (typeof enabled === 'boolean' && databaseMenuItem) {
+      databaseMenuItem.enabled = enabled;
     }
   });
 
@@ -191,39 +246,23 @@ app.whenReady().then(() => {
         }
       ]
     },
+  ipcMain.handle('theme:get-mode', () => themeMode);
+  ipcMain.handle('theme:set-mode', (_event, mode) => {
+    if (mode !== 'dark' && mode !== 'light') return themeMode;
+    themeMode = mode;
+    setupApplicationMenu(themeMode);
+    return themeMode;
+  });
+  ipcMain.on('theme-mode-changed', (_event, mode) => {
+    if (mode !== 'dark' && mode !== 'light') return;
+    themeMode = mode;
+    setupApplicationMenu(themeMode);
+  });
 
-    {
-      label: 'Account',
-      submenu: [
-        {
-          label: 'Sign Out',
-          click: (menuItem, browserWindow) => {
-            // Optionally, you can also refresh the renderer to reflect the sign-out state
-            browserWindow?.webContents.send('user-signed-out');
-          }
-        }
-      ] 
-
-    },
-    {
-      label: 'Options', 
-      submenu: [
-        {
-          label: 'Settings',
-          click: (menuItem, browserWindow) => {
-            // Optionally, you can also refresh the renderer to reflect the sign-out state
-            browserWindow?.webContents.send('settings-opened');
-          }
-        }
-      ]
-    }
-    // TODO: other menus (Edit, View, Window, etc.)
-  ];
-  
-  const menu = Menu.buildFromTemplate(template);
-  Menu.setApplicationMenu(menu);
+  setupApplicationMenu(themeMode);
 
   createWindow();
+  startPythonBackend(); // Start the Python backend when the app is ready
   if (!started) coreSupervisor.start().catch((error) => {
     console.error('PhotonCore startup failed:', error);
     dialog.showErrorBox('PhotonCore startup failed', `${error.message}\n\nBuild Core with gradlew.bat installDist or set PHOTON_CORE_HOME to an installed distribution.`);
@@ -242,5 +281,11 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
+  }
+});
+
+app.on('will-quit', () => {
+  if (pythonProcess) {
+    pythonProcess.kill();
   }
 });

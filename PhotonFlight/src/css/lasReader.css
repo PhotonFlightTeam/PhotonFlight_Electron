@@ -2,7 +2,58 @@
 	width: 100vw;
 	height: 100vh;
 	position: relative;
-	background: #dbd7d7;
+	overflow: hidden;
+	isolation: isolate;
+	background:
+		radial-gradient(circle at 72% 28%, rgba(48, 104, 135, 0.38), transparent 28%),
+		radial-gradient(circle at 18% 78%, rgba(66, 89, 126, 0.22), transparent 32%),
+		linear-gradient(145deg, #07111f 0%, #0b1b2b 48%, #101827 100%);
+}
+
+/* Crisp, cool daylight treatment for the LAS sandbox. */
+.las-viewer[data-theme='light'] {
+	background:
+		radial-gradient(circle at 72% 24%, rgba(56, 189, 248, 0.22), transparent 30%),
+		radial-gradient(circle at 18% 82%, rgba(14, 165, 233, 0.14), transparent 34%),
+		linear-gradient(145deg, #f8fbfd 0%, #eaf3f8 48%, #dceaf1 100%);
+}
+
+.las-viewer[data-theme='light']::after {
+	box-shadow: inset 0 0 100px rgba(71, 105, 128, 0.16);
+}
+
+.las-viewer[data-theme='light']::before {
+	background-image:
+		linear-gradient(rgba(51, 112, 145, 0.07) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(51, 112, 145, 0.07) 1px, transparent 1px);
+}
+
+.las-viewer::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	pointer-events: none;
+	background-image:
+		linear-gradient(rgba(148, 184, 213, 0.025) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(148, 184, 213, 0.025) 1px, transparent 1px);
+	background-size: 32px 32px;
+	mask-image: radial-gradient(circle at center, black 35%, transparent 88%);
+}
+
+.las-viewer::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	z-index: 3;
+	pointer-events: none;
+	box-shadow: inset 0 0 120px rgba(0, 0, 0, 0.72);
+}
+
+.las-viewer canvas {
+	position: relative;
+	z-index: 1;
+	background: transparent;
 }
 
 .tool-bar {
@@ -31,9 +82,24 @@
 	top: 20px;
 	left: 20px;
 	z-index: 10;
-	background-color: rgba(255, 255, 255, 0.9);
-	border-radius: 8px;
-	padding: 5px;
+	background: linear-gradient(145deg, rgba(16, 36, 58, 0.92), rgba(8, 23, 38, 0.88));
+	border: 1px solid rgba(125, 211, 252, 0.18);
+	border-radius: 10px;
+	padding: 6px;
+	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.32);
+	backdrop-filter: blur(14px);
+}
+
+.las-viewer[data-theme='light'] .view-color-box,
+.las-viewer[data-theme='light'] .zoom-box {
+	background: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(232, 243, 249, 0.94));
+	border-color: rgba(2, 105, 161, 0.18);
+	box-shadow: 0 12px 32px rgba(51, 91, 115, 0.18);
+}
+
+.las-viewer[data-theme='light'] .zoom-in,
+.las-viewer[data-theme='light'] .zoom-out {
+	color: #0369a1;
 }
 
 .zoom-box {
@@ -42,19 +108,21 @@
 	left: 20px;
 	height: 250px;
 	z-index: 10;
-	background-color: rgba(255, 255, 255, 0.9);
-	border-radius: 8px;
+	background: linear-gradient(145deg, rgba(16, 36, 58, 0.92), rgba(8, 23, 38, 0.88));
+	border: 1px solid rgba(125, 211, 252, 0.18);
+	border-radius: 10px;
 	padding: 15px 5px;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.32);
+	backdrop-filter: blur(14px);
 }
 
 .zoom-in {
 	margin-bottom: 15px;
 	font-weight: bold;
-	color: #555;
+	color: #b9d8eb;
 	cursor: pointer;
 	font-size: 20px;
 	user-select: none;
@@ -63,7 +131,7 @@
 .zoom-out {
 	margin-top: 15px;
 	font-weight: bold;
-	color: #555;
+	color: #b9d8eb;
 	cursor: pointer;
 	font-size: 24px;
 	user-select: none;

@@ -8,6 +8,10 @@ vi.mock('@loaders.gl/core', () => ({
   load: vi.fn(),
 }));
 
+vi.mock('@react-three/drei', () => ({
+  Grid: () => <div data-testid="point-cloud-grid" />,
+}));
+
 describe('PointCloudViewer', () => {
   beforeEach(() => {
     useStore.setState({ colors: null, positions: null, min: [0, 1, 0], max: [1, 0, 0] });

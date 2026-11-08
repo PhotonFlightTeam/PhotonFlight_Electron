@@ -8,18 +8,18 @@ const statePath = () => path.join(pluginsDir(), 'plugins-state.json');
 
 // Plugin ids become folder names, so only allow safe charactres (blocks "../")
 
-const VALID_ID = /^[a-z0-9][a-z0-9._]-]*$/i;
+const VALID_ID = /^[a-z0-9][a-z0-9._-]*$/i
 
 const ICON_TYPES = {
     '.png': 'image/png',
-    'jpg': 'image/jpeg',
-    'jpeg': 'image/jpeg',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
     '.svg': 'image/svg+xml',
 };
 
 function pluginPath(id) {
     if (typeof id !== 'string' || !VALID_ID.test(id)) {
-        throw new Error('Invalid plugin id: ${id}');
+        throw new Error(`Invalid plugin id: ${id}`);
     }
     return path.join(pluginsDir(), id);
 }
@@ -47,14 +47,14 @@ async function readManifest(dir) {
     if (!manifest.id || !VALID_ID.test(manifest.id)) {
         throw new Error('plugin.json needs an "id" (letters, numbers, . _ - only)');
     }
-    if (!maniest.name) {
+    if (!manifest.name) {
         throw new Error('plugin.json needs a "name"');
     }
     return manifest;
 }
 
 // The renderer can't load file:// paths from the dev server, so send icons as data URLs
-async function loadIcons(dir, iconFile) {
+async function loadIcon(dir, iconFile) {
     if (!iconFile) return null;
     const type = ICON_TYPES[path.extname(iconFile).toLowerCase()];
     if (!type) return null;
@@ -68,7 +68,7 @@ async function loadIcons(dir, iconFile) {
 
 export async function listPlugins() {
     await fs.mkdir(pluginsDir(), { recursive: true });
-    const tate = await readState();
+    const state = await readState();
     const entries = await fs.readdir(pluginsDir(), { withFileTypes: true });
 
     const plugins = [];
@@ -95,22 +95,22 @@ export async function listPlugins() {
 // Opens a foldere picker, validates plugin.json (and icon), and copies the folder into the plugins dir.
 // Returns the new plugin's id, or null if the user cancelled
 
-export async function importPlugins(browserWindow) {
+export async function importPlugin(browserWindow) {
     const { canceled, filePaths } = await dialog.showOpenDialog(browserWindow, {
         title: 'Select a plugin folder (must contain plugin.json)',
-        properties: ['opensDirectory'],
+        properties: ['openDirectory'],
     });
     if (canceled || filePaths.length === 0) return null;
 
     const sourceDir = filePaths[0];
     const manifest = await readManifest(sourceDir);
     await fs.mkdir(pluginsDir(), { recursive: true });
-    await fs.cp(sourceDir, pluginpath(manifest.id), { recursive: true, force: true });
+    await fs.cp(sourceDir, pluginPath(manifest.id), { recursive: true, force: true });
     return manifest.id;
 }
 
-export async function removePPlugin(id) {
-    await fs.rm(pluginpath(id), { recursive: true, force: true });
+export async function removePlugin(id) {
+    await fs.rm(pluginPath(id), { recursive: true, force: true });
     const state = await readState();
     delete state[id];
     await writeState(state);

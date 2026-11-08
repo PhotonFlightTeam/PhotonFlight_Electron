@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { GizmoHelper, GizmoViewport } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
 import PointCloudViewer from './PointCloudViewer';
 import MeasureTool from './MeasureTool';
@@ -12,15 +11,20 @@ import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import Select from '@mui/material/Select';
 import ViewControls from './ViewControls';
+/*import PluginLibrary from './PluginLibrary'; */
 import ToolBar from './ToolBar';
 import PinTool from './Pin';
+import { usePointCloudTheme } from '../theme/pointCloudTheme';
+import DatabaseBrowser from './DatabaseBrowser';
 
 
 // Parent Wrapper providing the WebGL Viewport Context
 export default function LasViewer({ fileUrl: initialFileUrl }) {
+  const { mode } = usePointCloudTheme();
   const [active, setActive] = useState('base');
   const [key, setKey] = useState(0);
   const [fileSource, setFileSource] = useState(initialFileUrl);
+  const [currentFile, setCurrentFile] = useState(null);
   const [zoom, setZoom] = useState(180);
   const [zoomRequest, setZoomRequest] = useState({ value: 180 });
   const [activeTool, setActiveTool] = useState('Select');
@@ -30,15 +34,25 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
     setZoom(value);
     setZoomRequest({ value });
   };
-
+  
+  const [pluginLibraryOpen, setPluginLibraryOpen] = useState(false);
+  
   useEffect(() => {
     if (!window.electronAPI) return;
 
     const offImport = window.electronAPI.onFileImported(async (filePath) => { // Import a .las file and load it into the viewer
       const buffer = await window.electronAPI.readFile(filePath);
-      if (buffer) { 
-        const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+      if (buffer) {
+        const bytes = new Uint8Array(buffer);
+        const arrayBuffer = bytes.buffer.slice(
+          bytes.byteOffset,
+          bytes.byteOffset + bytes.byteLength,
+        );
         setFileSource(arrayBuffer);
+        setCurrentFile({
+          name: filePath.split(/[\\/]/).pop(),
+          bytes,
+        });
         useStore.setState({ colors: null, positions: null, measures: null, pinpoints: null });
       }
     });
@@ -51,11 +65,20 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
       await window.electronAPI.saveFile(filePath, encodedLasData);
     });
 
+        const offPluginLibrary = window.electronAPI.onOpenPluginLibrary(() => setPluginLibraryOpen(true));
+
     return () => {
       offImport();
       offExport();
+      offPluginLibrary();
     };
   }, []);
+
+  const loadDatabaseFile = (arrayBuffer) => {
+    setFileSource(arrayBuffer);
+    setCurrentFile(null);
+    useStore.setState({ colors: null, positions: null, measures: null, pinpoints: null });
+  };
 
   const handleChange = (event) => {
     setActive(event.target.value); 
@@ -64,9 +87,14 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
   };
 
   return (
-    <div className="las-viewer">
+    <div className="las-viewer" data-theme={mode}>
+      <DatabaseBrowser
+        currentFile={currentFile}
+        onLoadFile={loadDatabaseFile}
+      />
       <Canvas 
       camera={{ position: [0, 10, 50], fov: 60 }}
+      gl={{ alpha: true, antialias: true }}
       key={key}>
         <ambientLight intensity={1.5} />
         <pointLight position={[10, 10, 10]} />
@@ -120,6 +148,7 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
           -
         </div>
       </Box>
+     {/* <PluginLibrary open={pluginLibraryOpen} onClose={() => setPluginLibraryOpen(false)} /> */}
     </div>
   );
 }
