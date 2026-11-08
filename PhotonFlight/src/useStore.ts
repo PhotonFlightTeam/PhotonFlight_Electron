@@ -6,6 +6,8 @@ interface State {
   measures: Array<number> | null;
   pinpoints: Array<number> | null;
   user: string | null;
+  username: string | null;
+  id: string | null;
   min: [number, number, number] | null;
   max: [number, number, number] | null;
   setAllPointCloudColors: (rgb: [number, number, number]) => void;
@@ -44,6 +46,10 @@ const useStore = create<State>()((set, get) => ({
     newPositions = positions;
     set((state) => ({ positions: newPositions }))
   }
+  username: null,
+  id: null,
+  min: [0,1,0],
+  max: [1,0,0],
 }))
 
 export default useStore;

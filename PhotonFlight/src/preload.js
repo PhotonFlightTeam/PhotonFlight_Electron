@@ -34,6 +34,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   getThemeMode: () => ipcRenderer.invoke('theme:get-mode'),
   setThemeMode: (mode) => ipcRenderer.invoke('theme:set-mode', mode),
+  setDatabaseMenuEnabled: (enabled) => ipcRenderer.send('database-menu-enabled', enabled),
+  onOpenDatabaseBrowser: (callback) => {
+    const handler = () => callback();
+    ipcRenderer.on('open-database-browser', handler);
+    return () => ipcRenderer.removeListener('open-database-browser', handler);
+  },
   // Request file system operations from main.js
   readFile: (filePath) => ipcRenderer.invoke('read-file', filePath),
   saveFile: (filePath, data) => ipcRenderer.invoke('save-file', filePath, data),
