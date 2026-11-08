@@ -6,6 +6,7 @@ import { registerPluginHandlers, importPlugin } from './pluginManager';
 import { createClerkBridge } from '@clerk/electron';
 import { storage } from '@clerk/electron/storage';
 import { spawn } from 'node:child_process'
+import { setupApplicationMenu } from './applicationMenu';
 
 let themeMode = 'dark';
 
@@ -25,6 +26,10 @@ if (process.defaultApp && process.argv.length >= 2) {
 
 let pythonProcess = null; 
 const isDev = !app.isPackaged;
+
+if (process.platform === 'linux' && process.env.XDG_SESSION_TYPE === 'wayland') {
+  app.commandLine.appendSwitch('disable-vulkan');
+}
 
 const startPythonBackend = () => {
   let backendPath; 
