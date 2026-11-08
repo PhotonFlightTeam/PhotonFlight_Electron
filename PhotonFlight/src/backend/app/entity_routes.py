@@ -15,7 +15,7 @@ from .auth import get_current_user_id
 from .database import get_connection
 
 
-def make_router(path, table, key, model, owner=None):
+def make_router(path, table, key, model, owner=None, response_columns=None):
     router = APIRouter(
         prefix="/api/" + path,
         tags=[path.title()],
@@ -35,6 +35,11 @@ def make_router(path, table, key, model, owner=None):
             "map_id IN "
             "(SELECT map_id FROM public.maps WHERE created_by = %s)"
         )
+
+    projection = (
+        sql.SQL(", ").join(map(sql.Identifier, response_columns))
+        if response_columns else sql.SQL("*")
+    )
 
     def check_links(connection, data, user):
         if "map_id" not in data:
@@ -91,12 +96,13 @@ def make_router(path, table, key, model, owner=None):
         connection: Connection = Depends(get_connection),
     ):
         query = sql.SQL(
-            "SELECT * FROM {table} WHERE {guard} "
+            "SELECT {projection} FROM {table} WHERE {guard} "
             "ORDER BY {key} LIMIT %s OFFSET %s"
         ).format(
             table=table_sql,
             guard=guard,
             key=key_sql,
+            projection=projection,
         )
 
         return connection.execute(
@@ -111,12 +117,13 @@ def make_router(path, table, key, model, owner=None):
         connection: Connection = Depends(get_connection),
     ):
         query = sql.SQL(
-            "SELECT * FROM {table} "
+            "SELECT {projection} FROM {table} "
             "WHERE {key} = %s AND {guard}"
         ).format(
             table=table_sql,
             key=key_sql,
             guard=guard,
+            projection=projection,
         )
 
         row = connection.execute(
@@ -149,7 +156,7 @@ def make_router(path, table, key, model, owner=None):
                 if record_id is None:
                     query = sql.SQL(
                         "INSERT INTO {table} ({columns}) "
-                        "VALUES ({values}) RETURNING *"
+                        "VALUES ({values}) RETURNING {projection}"
                     ).format(
                         table=table_sql,
                         columns=sql.SQL(", ").join(
@@ -158,6 +165,7 @@ def make_router(path, table, key, model, owner=None):
                         values=sql.SQL(", ").join(
                             sql.Placeholder() for _ in columns
                         ),
+                        projection=projection,
                     )
 
                     params = tuple(data.values())
@@ -172,12 +180,14 @@ def make_router(path, table, key, model, owner=None):
 
                     query = sql.SQL(
                         "UPDATE {table} SET {assignments} "
-                        "WHERE {key} = %s AND {guard} RETURNING *"
+                        "WHERE {key} = %s AND {guard} "
+                        "RETURNING {projection}"
                     ).format(
                         table=table_sql,
                         assignments=assignments,
                         key=key_sql,
                         guard=guard,
+                        projection=projection,
                     )
 
                     params = (*data.values(), record_id, user)

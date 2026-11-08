@@ -22,6 +22,7 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
   const [active, setActive] = useState('base');
   const [key, setKey] = useState(0);
   const [fileSource, setFileSource] = useState(initialFileUrl);
+  const [currentFile, setCurrentFile] = useState(null);
   const [zoom, setZoom] = useState(180);
   const [zoomRequest, setZoomRequest] = useState({ value: 180 });
   const [activeTool, setActiveTool] = useState('Select');
@@ -37,9 +38,17 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
 
     const offImport = window.electronAPI.onFileImported(async (filePath) => { // Import a .las file and load it into the viewer
       const buffer = await window.electronAPI.readFile(filePath);
-      if (buffer) { 
-        const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+      if (buffer) {
+        const bytes = new Uint8Array(buffer);
+        const arrayBuffer = bytes.buffer.slice(
+          bytes.byteOffset,
+          bytes.byteOffset + bytes.byteLength,
+        );
         setFileSource(arrayBuffer);
+        setCurrentFile({
+          name: filePath.split(/[\\/]/).pop(),
+          bytes,
+        });
         useStore.setState({ colors: null, positions: null, measures: null, pinpoints: null });
       }
     });
@@ -58,6 +67,12 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
     };
   }, []);
 
+  const loadDatabaseFile = (arrayBuffer) => {
+    setFileSource(arrayBuffer);
+    setCurrentFile(null);
+    useStore.setState({ colors: null, positions: null, measures: null, pinpoints: null });
+  };
+
   const handleChange = (event) => {
     setActive(event.target.value); 
     useStore.setState({ colors: null }); // Reset colors to trigger re-render
@@ -66,7 +81,10 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
 
   return (
     <div className="las-viewer">
-      <DatabaseBrowser />
+      <DatabaseBrowser
+        currentFile={currentFile}
+        onLoadFile={loadDatabaseFile}
+      />
       <Canvas 
       camera={{ position: [0, 10, 50], fov: 60 }}
       key={key}>
