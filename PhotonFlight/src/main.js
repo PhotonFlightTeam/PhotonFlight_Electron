@@ -7,6 +7,7 @@ import { createClerkBridge } from '@clerk/electron';
 import { storage } from '@clerk/electron/storage';
 import { spawn } from 'node:child_process'
 
+let themeMode = 'dark';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -118,7 +119,20 @@ app.whenReady().then(() => {
 
   registerPluginHandlers();
 
-  setupApplicationMenu();
+  ipcMain.handle('theme:get-mode', () => themeMode);
+  ipcMain.handle('theme:set-mode', (_event, mode) => {
+    if (mode !== 'dark' && mode !== 'light') return themeMode;
+    themeMode = mode;
+    setupApplicationMenu(themeMode);
+    return themeMode;
+  });
+  ipcMain.on('theme-mode-changed', (_event, mode) => {
+    if (mode !== 'dark' && mode !== 'light') return;
+    themeMode = mode;
+    setupApplicationMenu(themeMode);
+  });
+
+  setupApplicationMenu(themeMode);
 
   createWindow();
   startPythonBackend(); // Start the Python backend when the app is ready

@@ -2,22 +2,25 @@ import { load } from '@loaders.gl/core';
 import { LASLoader } from '@loaders.gl/las';
 import { applyHeightMapColor } from '../color/heightMap';
 import { applySlopeMapColor } from '../color/slopeMap';
-import { colorCircle } from '../color/colorCircle';
-import { colorSquare } from '../color/colorSquare';
+import { Grid } from '@react-three/drei';
 import { useState, useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import useStore from '../useStore';
+import { usePointCloudTheme } from '../theme/pointCloudTheme';
 
 
 // Point Cloud Renderer Component
 export default function PointCloudViewer({ fileUrl, active, pointsRef }) {
+  const { mode } = usePointCloudTheme();
   const [pointData, setPointData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null); 
+  const [error, setError] = useState(null);
+  const [geo, setGeo] = useState([]) 
 	// min is the value at the minimum point, max is the val at maximum point
 	// NOT to be confused with min and max of RGB Color Space
   const [rgbMinMax, setRgbMinMax] = useState({ min: useStore.getState().min, max: useStore.getState().max });
-
+  const setAllPointCloudColors = useStore((state) => state.setAllPointCloudColors)
+  const setPositions = useStore((state) => state.setPositions)
   // Parses the LiDAR data
   useEffect(() => {
     let cancelled = false;
@@ -59,60 +62,64 @@ export default function PointCloudViewer({ fileUrl, active, pointsRef }) {
 
 
   // Build Three.js Buffer Geometry using useMemo
-  const geometry = useMemo(() => {
-    // Ensures that point data exists. 
-    if (!pointData || !pointData.attributes.POSITION) return null;
+  useEffect(() => {
+    if (pointData && pointData.attributes.POSITION) {
+      const geo = new THREE.BufferGeometry();
+      const positions = pointData.attributes.POSITION.value;
+      setPositions(positions);
+      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
-    const geo = new THREE.BufferGeometry();
-    // Extract Positions array [x1, y1, z1, x2, y2, z2, ...]
-    // Store the position in global state
-    const positions = pointData.attributes.POSITION.value;
-    useStore.setState({ positions: positions });
-    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-
-    // Check which color mode the program is set to
-    if (useStore.getState().colors !== null) {
-	    // Handle RGB colors if they exist in the point cloud attributes
-      geo.setAttribute('color', new THREE.BufferAttribute(useStore.getState().colors, 3));
-    } else if (pointData.attributes.COLOR_0 && active === 'base') {
-      const sourceColors = pointData.attributes.COLOR_0.value;
-      const colors = new Float32Array((sourceColors.length / 4) * 3);
-      for (let sourceIndex = 0, colorIndex = 0; sourceIndex < sourceColors.length; sourceIndex += 4) {
-        colors[colorIndex++] = sourceColors[sourceIndex] / 255;
-        colors[colorIndex++] = sourceColors[sourceIndex + 1] / 255;
-        colors[colorIndex++] = sourceColors[sourceIndex + 2] / 255;
+      if (active === 'base') {
+        const baseColor = mode === 'light'
+          ? [16 / 255, 42 / 255, 67 / 255]
+          : [1, 1, 1];
+        setAllPointCloudColors(baseColor);
+        const baseColors = useStore.getState().colors;
+        geo.setAttribute('color', new THREE.BufferAttribute(baseColors, 3));
+      } else {
+        geo.deleteAttribute('color');
       }
 
-      // Set color value for attribute and global state
-      geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-      useStore.setState({ colors: colors });
+      geo.computeBoundingSphere();
+      geo.center();
+      geo.computeBoundingBox();
+      
+      setGeo(geo)
+    } else {
+      setGeo([])
+    } 
+  }, [pointData, active, rgbMinMax, mode]);
 
-      // Examples uses of the color functions
-      colorCircle(geo, [322289, 4262576, 0], 50, [1, 0, 0]);
-      colorSquare(geo, [322389, 4262676, 0], 50, 50, [0, 0, 1]);
-    } else { // If no RGB data or not active default is by slope gradient mapping
-      if (active === 'height') {
-        applyHeightMapColor(geo, positions, rgbMinMax);
-      } else if (active === 'slope') {
-        applySlopeMapColor(geo, positions, rgbMinMax);
-      }
-    }
-	   // Center the geometry so it initializes directly in front of the camera bounds
-    geo.computeBoundingSphere();
-    geo.center();
+  if (!fileUrl || loading || error || !geo) return null;
 
-    return geo;
-  }, [pointData, active, rgbMinMax]);
-
-  if (!fileUrl || loading || error || !geometry) return null;
+  const bounds = geo.boundingBox;
+  const cloudHeight = bounds?.max.y - bounds?.min.y;
+  const floorY = bounds?.min.y - Math.max(1, cloudHeight * 0.04);
 
   return (
-    <points ref={pointsRef} geometry={geometry} >
-      <pointsMaterial 
-        size={0.05} // Adjust thickness based on data density
-        vertexColors={!!geometry.attributes.color} // Use laser-captured color metrics if available
-        sizeAttenuation={true} // Near points appear larger than distant points
+    <>
+      <Grid
+        position={[0, floorY, 0]}
+        args={[100, 100]}
+        cellSize={1}
+        cellThickness={0.45}
+        cellColor={mode === 'light' ? '#93a8b8' : '#31506f'}
+        sectionSize={10}
+        sectionThickness={0.9}
+        sectionColor={mode === 'light' ? '#52758c' : '#4c789c'}
+        fadeDistance={90}
+        fadeStrength={1}
+        infiniteGrid
+        renderOrder={-1}
       />
-    </points>
+      <points ref={pointsRef} geometry={geo} >
+        <pointsMaterial
+          color={mode === 'light' ? '#102a43' : '#eaf6ff'}
+          size={0.05} // Adjust thickness based on data density
+          vertexColors={!!geo.attributes?.color} // Use laser-captured color metrics if available
+          sizeAttenuation={true} // Near points appear larger than distant points
+        />
+      </points>
+    </>
   );
 }

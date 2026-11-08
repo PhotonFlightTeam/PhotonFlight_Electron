@@ -4,27 +4,21 @@
     place-items: center;
     box-sizing: border-box;
     padding: 2rem;
-    background: linear-gradient(
-        135deg,
-        rgba(var(--oauth-min-color), 0.18),
-        rgba(var(--oauth-max-color), 0.18)
-    );
+    background:
+        radial-gradient(circle at 72% 28%, rgba(48, 104, 135, 0.38), transparent 28%),
+        radial-gradient(circle at 18% 78%, rgba(66, 89, 126, 0.22), transparent 32%),
+        linear-gradient(145deg, #07111f 0%, #0b1b2b 48%, #101827 100%);
 }
 
 .oauth-card {
     width: min(100%, 28rem);
     box-sizing: border-box;
     padding: 2.5rem;
-    border: 1px solid rgba(0, 0, 0, 0.06);
+    border: 1px solid rgba(125, 211, 252, 0.18);
     border-radius: 20px;
-    background:
-        linear-gradient(
-            135deg,
-            rgba(var(--oauth-min-color), 0.3),
-            rgba(var(--oauth-max-color), 0.3)
-        ),
-        rgba(255, 255, 255, 0.78);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
+    background: linear-gradient(145deg, rgba(16, 36, 58, 0.94), rgba(8, 23, 38, 0.92));
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(18px);
     text-align: center;
 }
 
@@ -37,18 +31,4 @@
     flex-wrap: wrap;
     justify-content: center;
     gap: 0.75rem;
-}
-
-.oauth-actions button {
-    padding: 0.7rem 1.2rem;
-    border: 1px solid rgba(0, 0, 0, 0.16);
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.85);
-    color: inherit;
-    font: inherit;
-    cursor: pointer;
-}
-
-.oauth-actions button:hover {
-    background: #fff;
 }
