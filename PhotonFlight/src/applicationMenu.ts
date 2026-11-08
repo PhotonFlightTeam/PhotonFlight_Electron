@@ -1,13 +1,15 @@
 import { BrowserWindow, Menu, dialog, type BaseWindow, type KeyboardEvent, type MenuItem, type MenuItemConstructorOptions } from 'electron';
-import { importPlugins } from './pluginManager';
+import { importPlugin } from './pluginManager';
+import useStore from "./useStore"
 
+//const setAllPointCloudColors = useStore((state) => state.setAllPointCloudColors)
 
 function getWindow(baseWindow: BaseWindow | undefined): BrowserWindow | null {
   if (baseWindow instanceof BrowserWindow) return baseWindow;
   return BrowserWindow.getFocusedWindow();
 }
 
-export function setupApplicationMenu(): void {
+export function setupApplicationMenu(themeMode: 'dark' | 'light' = 'dark'): void {
   const template: MenuItemConstructorOptions[] = [
     {
       label: 'File',
@@ -67,7 +69,7 @@ export function setupApplicationMenu(): void {
             if (!window) return;
 
             try {
-              const id = await importPlugins(window);
+              const id = await importPlugin(window);
               if (id) {
                 window.webContents.send('plugins-changed');
                 window.webContents.send('open-plugin-library');
@@ -99,6 +101,33 @@ export function setupApplicationMenu(): void {
           click: (_menuItem: MenuItem, baseWindow?: BaseWindow, _event?: KeyboardEvent) => {
             getWindow(baseWindow)?.webContents.send('settings-opened');
           },
+        },
+        {
+          label: 'Theme',
+          submenu: [
+            {
+              label: `${themeMode[0].toUpperCase()}${themeMode.slice(1)} mode`,
+              enabled: false,
+            },
+            { type: 'separator' },
+            {
+              label: 'Dark',
+              type: 'radio',
+              checked: themeMode === 'dark',
+              click: (_menuItem: MenuItem, baseWindow?: BaseWindow) => {
+                getWindow(baseWindow)?.webContents.send('theme-mode-changed', 'dark');
+              },
+            },
+            {
+              label: 'Light',
+              type: 'radio',
+              checked: themeMode === 'light',
+              click: (_menuItem: MenuItem, baseWindow?: BaseWindow) => {
+                getWindow(baseWindow)?.webContents.send('theme-mode-changed', 'light');
+               // setAllPointCloudColors([0, 0.4, 1])
+              },
+            },
+          ],
         },
       ],
     },

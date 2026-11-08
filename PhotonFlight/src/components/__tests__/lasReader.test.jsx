@@ -8,6 +8,7 @@ vi.mock('@react-three/fiber', () => ({
 }));
 
 vi.mock('@react-three/drei', () => ({
+  Grid: () => <div data-testid="grid" />,
   GizmoHelper: ({ children }) => <div>{children}</div>,
   GizmoViewport: () => <div data-testid="gizmo" />,
 }));
@@ -34,11 +35,13 @@ describe('LasViewer', () => {
   let callbacks;
   let unsubscribeImport;
   let unsubscribeExport;
+  let unsubscribePluginLibrary;
 
   beforeEach(() => {
     callbacks = {};
     unsubscribeImport = vi.fn();
     unsubscribeExport = vi.fn();
+    unsubscribePluginLibrary = vi.fn();
     window.electronAPI = {
       onFileImported: vi.fn((callback) => {
         callbacks.import = callback;
@@ -48,6 +51,7 @@ describe('LasViewer', () => {
         callbacks.export = callback;
         return unsubscribeExport;
       }),
+      onOpenPluginLibrary: vi.fn(() => unsubscribePluginLibrary),
       readFile: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
       saveFile: vi.fn().mockResolvedValue(undefined),
     };

@@ -27,6 +27,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('settings-opened', handler);
     return () => ipcRenderer.removeListener('settings-opened', handler);
   },
+  onThemeModeChanged: (callback) => {
+    const handler = (_event, mode) => callback(mode);
+    ipcRenderer.on('theme-mode-changed', handler);
+    return () => ipcRenderer.removeListener('theme-mode-changed', handler);
+  },
+  getThemeMode: () => ipcRenderer.invoke('theme:get-mode'),
+  setThemeMode: (mode) => ipcRenderer.invoke('theme:set-mode', mode),
   // Request file system operations from main.js
   readFile: (filePath) => ipcRenderer.invoke('read-file', filePath),
   saveFile: (filePath, data) => ipcRenderer.invoke('save-file', filePath, data),

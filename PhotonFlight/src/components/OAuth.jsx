@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { SignInButton, useUser, useClerk } from '@clerk/electron/react';
 import LasViewer from './lasReader.jsx';
 import useStore from '../useStore';
+import Button from '@mui/material/Button';
 import '../css/OAuth.css';
 
 export default function OAuth() {
@@ -64,11 +65,11 @@ export default function OAuth() {
                 <h1>Photon Flight</h1>
                 <div className="oauth-actions">
                     <SignInButton mode="modal">
-                        <button type="button">Sign In</button>
+                        <Button variant="contained" type="button">Sign In</Button>
                     </SignInButton>
-                    <button type="button" onClick={guestClick}>
+                    <Button variant="outlined" type="button" onClick={guestClick}>
                         Offline Mode
-                    </button>
+                    </Button>
                 </div>
             </section>
         </main>

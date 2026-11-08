@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { GizmoHelper, GizmoViewport } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
 import PointCloudViewer from './PointCloudViewer';
 import MeasureTool from './MeasureTool';
@@ -12,13 +11,15 @@ import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import Select from '@mui/material/Select';
 import ViewControls from './ViewControls';
-import PluginLibrary from './plugins/PluginLibrary';
+/*import PluginLibrary from './PluginLibrary'; */
 import ToolBar from './ToolBar';
 import PinTool from './Pin';
+import { usePointCloudTheme } from '../theme/pointCloudTheme';
 
 
 // Parent Wrapper providing the WebGL Viewport Context
 export default function LasViewer({ fileUrl: initialFileUrl }) {
+  const { mode } = usePointCloudTheme();
   const [active, setActive] = useState('base');
   const [key, setKey] = useState(0);
   const [fileSource, setFileSource] = useState(initialFileUrl);
@@ -31,9 +32,9 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
     setZoom(value);
     setZoomRequest({ value });
   };
-
+  
   const [pluginLibraryOpen, setPluginLibraryOpen] = useState(false);
-
+  
   useEffect(() => {
     if (!window.electronAPI) return;
 
@@ -70,9 +71,10 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
   };
 
   return (
-    <div className="las-viewer">
-      <Canvas 
+    <div className="las-viewer" data-theme={mode}>
+      <Canvas
       camera={{ position: [0, 10, 50], fov: 60 }}
+      gl={{ alpha: true, antialias: true }}
       key={key}>
         <ambientLight intensity={1.5} />
         <pointLight position={[10, 10, 10]} />
@@ -126,7 +128,7 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
           -
         </div>
       </Box>
-      <PluginLibrary open={pluginLibraryOpen} onClose={() => setPluginLibraryOpen(false)} />
+     {/* <PluginLibrary open={pluginLibraryOpen} onClose={() => setPluginLibraryOpen(false)} /> */}
     </div>
   );
 }
