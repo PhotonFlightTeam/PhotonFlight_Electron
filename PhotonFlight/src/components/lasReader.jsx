@@ -12,6 +12,7 @@ import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import Select from '@mui/material/Select';
 import ViewControls from './ViewControls';
+import PluginLibrary from './plugins/PluginLibrary';
 import ToolBar from './ToolBar';
 import PinTool from './Pin';
 import DatabaseBrowser from './DatabaseBrowser';
@@ -32,6 +33,8 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
     setZoom(value);
     setZoomRequest({ value });
   };
+
+  const [pluginLibraryOpen, setPluginLibraryOpen] = useState(false);
 
   useEffect(() => {
     if (!window.electronAPI) return;
@@ -61,9 +64,12 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
       await window.electronAPI.saveFile(filePath, encodedLasData);
     });
 
+        const offPluginLibrary = window.electronAPI.onOpenPluginLibrary(() => setPluginLibraryOpen(true));
+
     return () => {
       offImport();
       offExport();
+      offPluginLibrary();
     };
   }, []);
 
@@ -140,6 +146,7 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
           -
         </div>
       </Box>
+      <PluginLibrary open={pluginLibraryOpen} onClose={() => setPluginLibraryOpen(false)} />
     </div>
   );
 }
