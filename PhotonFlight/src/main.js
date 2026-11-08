@@ -5,7 +5,7 @@ import fs from 'node:fs/promises';
 import { registerPluginHandlers, importPlugin } from './pluginManager';
 import { createClerkBridge } from '@clerk/electron';
 import { storage } from '@clerk/electron/storage';
-import { setupApplicationMenu } from './applicationMenu';
+import { spawn } from 'node:child_process'
 
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -20,6 +20,47 @@ const clerk = createClerkBridge({
 
 if (process.defaultApp && process.argv.length >= 2) {
   app.setAsDefaultProtocolClient('photonflight', process.execPath, [path.resolve(process.argv[1])]);
+}
+
+let pythonProcess = null; 
+const isDev = !app.isPackaged;
+
+const startPythonBackend = () => {
+  let backendPath; 
+  let args = [];
+
+  if (isDev) {
+    const backendDirectory = path.join(app.getAppPath(),
+      'src', 
+      'backend');
+    backendPath = path.join(backendDirectory,
+      'venv',
+      process.platform === 'win32' ? 'Scripts' : 'bin',
+      process.platform === 'win32' ? 'uvicorn.exe' : 'uvicorn');
+    args = ['app.main:app', '--host', '127.0.0.1', '--port', '8000'];
+  } else {
+
+    backendPath = path.join(process.resourcesPath, 'backend_dist', 'main');
+    if (process.platform === 'win32') backendPath += '.exe';
+  }
+
+  pythonProcess = spawn(backendPath, args, {
+    cwd: isDev ? path.join(app.getAppPath(), 'src', 'backend') : undefined,
+    env: { ...process.env }
+  });
+
+  pythonProcess.on('error', (error) => {
+    console.error(`Failed to start Python backend at ${backendPath}:`, error);
+  });
+
+  // Log backend outputs to Electron's terminal
+  pythonProcess.stdout.on('data', (data) => {
+    console.log(`[Python Stdout]: ${data}`);
+  });
+
+  pythonProcess.stderr.on('data', (data) => {
+    console.error(`[Python Stderr]: ${data}`);
+  });
 }
 
 
@@ -68,11 +109,19 @@ app.whenReady().then(() => {
     }
   });
 
+  let databaseMenuItem;
+  ipcMain.on('database-menu-enabled', (_event, enabled) => {
+    if (typeof enabled === 'boolean' && databaseMenuItem) {
+      databaseMenuItem.enabled = enabled;
+    }
+  });
+
   registerPluginHandlers();
 
   setupApplicationMenu();
 
   createWindow();
+  startPythonBackend(); // Start the Python backend when the app is ready
 
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
@@ -88,5 +137,11 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     clerk.cleanup();
     app.quit();
+  }
+});
+
+app.on('will-quit', () => {
+  if (pythonProcess) {
+    pythonProcess.kill();
   }
 });

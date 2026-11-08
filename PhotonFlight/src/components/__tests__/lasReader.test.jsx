@@ -7,9 +7,13 @@ vi.mock('@react-three/fiber', () => ({
   Canvas: ({ children }) => <div data-testid="canvas">{children}</div>,
 }));
 
-vi.mock('@react-three/drei', () => ({
-  GizmoHelper: ({ children }) => <div>{children}</div>,
-  GizmoViewport: () => <div data-testid="gizmo" />,
+// vi.mock('@react-three/drei', () => ({
+//   GizmoHelper: ({ children }) => <div>{children}</div>,
+//   GizmoViewport: () => <div data-testid="gizmo" />,
+// }));
+
+vi.mock('@clerk/electron/react', () => ({
+  useAuth: () => ({ getToken: vi.fn() }),
 }));
 
 vi.mock('../PointCloudViewer', () => ({

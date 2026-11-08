@@ -6,6 +6,8 @@ interface State {
   measures: Array<number> | null;
   pinpoints: Array<number> | null;
   user: string | null;
+  username: string | null;
+  id: string | null;
   min: [number, number, number] | null;
   max: [number, number, number] | null;
 }
@@ -18,6 +20,8 @@ const useStore = create<State>()((set) => ({
   measures: null,
   pinpoints: null,
   user: null,
+  username: null,
+  id: null,
   min: [0,1,0],
   max: [1,0,0],
 }))
