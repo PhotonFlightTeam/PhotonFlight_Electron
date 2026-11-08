@@ -17,6 +17,8 @@ interface State {
 // State actions keep point-cloud color mutations in one place and give the
 // renderer a fresh array so React/Zustand consumers can observe the change.
 const useStore = create<State>()((set, get) => ({
+  username: null,
+  id: null,
   colors: null,
   positions: null,
   measures: null,
@@ -46,10 +48,6 @@ const useStore = create<State>()((set, get) => ({
     newPositions = positions;
     set((state) => ({ positions: newPositions }))
   }
-  username: null,
-  id: null,
-  min: [0,1,0],
-  max: [1,0,0],
 }))
 
 export default useStore;

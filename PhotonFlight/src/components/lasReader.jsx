@@ -88,8 +88,6 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
 
   return (
     <div className="las-viewer" data-theme={mode}>
-      <Canvas
-    <div className="las-viewer">
       <DatabaseBrowser
         currentFile={currentFile}
         onLoadFile={loadDatabaseFile}
