@@ -14,10 +14,7 @@
     "test": "vitest run"
   },
   "keywords": [],
-  "author": {
-    "name": "Samuel Patterson",
-    "email": "sam.patterson@okstate.edu"
-  },
+  "author": "Samuel Patterson <sam.patterson@okstate.edu>",
   "license": "MIT",
   "devDependencies": {
     "@electron-forge/cli": "^7.11.2",
@@ -40,6 +37,8 @@
     "@clerk/electron": "^0.1.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@grpc/grpc-js": "^1.14.7",
+    "@grpc/proto-loader": "^0.8.1",
     "@loaders.gl/core": "^4.4.5",
     "@loaders.gl/las": "^4.4.5",
     "@mui/icons-material": "^9.5.0",

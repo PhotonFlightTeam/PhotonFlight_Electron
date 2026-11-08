@@ -5,6 +5,7 @@ import fs from 'node:fs/promises';
 import { registerPluginHandlers, importPlugin } from './pluginManager';
 import { createClerkBridge } from '@clerk/electron';
 import { storage } from '@clerk/electron/storage';
+import { setupApplicationMenu } from './applicationMenu';
 
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -69,106 +70,7 @@ app.whenReady().then(() => {
 
   registerPluginHandlers();
 
-  const template = [
-    {
-      label: 'File',
-      submenu: [
-        {
-          label: 'Import',
-          click: async (menuItem, browserWindow) => {
-            if (!browserWindow) return;
-            const { canceled, filePaths } = await dialog.showOpenDialog(browserWindow, {
-              properties: ['openFile'],
-              filters: [
-                { name: 'LAS/LAZ Files', extensions: ['las', 'laz'] },
-                { name: 'All Files', extensions: ['*'] }
-              ]
-            });
-            if (!canceled && filePaths.length > 0) {
-              // Send the selected file path to the renderer process
-              browserWindow.webContents.send('file-imported', filePaths[0]);
-            }
-          }
-        },
-        {
-          label: 'Export',
-          click: async (menuItem, browserWindow) => {
-            if (!browserWindow) return;
-            const { canceled, filePath } = await dialog.showSaveDialog(browserWindow, {
-              filters: [
-                { name: 'LAS File', extensions: ['las'] },
-                { name: 'LAZ File', extensions: ['laz'] }
-              ]
-            });
-            if (!canceled && filePath) {
-              // TODO: Send the destination path to the renderer process to handle saving
-              browserWindow.webContents.send('file-exported', filePath);
-            }
-          }
-        },
-        { type: 'separator' },
-        { role: 'quit' }
-      ]
-    },
-
-    {
-      label: 'Plugins',
-      submenu: [
-        {
-          label: 'Library',
-          click: (menuItem, browserWindow) => {
-            browserWindow?.webContents.send('open-plugin-library');
-          }
-        },
-        {
-          label: 'Import...',
-          click: async (menuItem, browserWindow) => {
-            if (!browserWindow) return;
-            try {
-              const id = await importPlugin(browserWindow);
-              if (id) {
-                // Refresh the library and show it so user sees the new plugin
-                browserWindow.webContents.send('plugins-changed');
-                browserWindow.webContents.send('open-plugin-library');
-              }
-            } catch (error) {
-              dialog.showErrorBox('Plugin import failed', error.message);
-            }
-          }
-        }
-      ]
-    },
-
-    {
-      label: 'Account',
-      submenu: [
-        {
-          label: 'Sign Out',
-          click: (menuItem, browserWindow) => {
-            // Optionally, you can also refresh the renderer to reflect the sign-out state
-            browserWindow?.webContents.send('user-signed-out');
-          }
-        }
-      ] 
-
-    },
-    {
-      label: 'Options', 
-      submenu: [
-        {
-          label: 'Settings',
-          click: (menuItem, browserWindow) => {
-            // Optionally, you can also refresh the renderer to reflect the sign-out state
-            browserWindow?.webContents.send('settings-opened');
-          }
-        }
-      ]
-    }
-    // TODO: other menus (Edit, View, Window, etc.)
-  ];
-  
-  const menu = Menu.buildFromTemplate(template);
-  Menu.setApplicationMenu(menu);
+  setupApplicationMenu();
 
   createWindow();
 
