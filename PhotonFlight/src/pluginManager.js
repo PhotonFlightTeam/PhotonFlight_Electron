@@ -47,7 +47,7 @@ async function readManifest(dir) {
     if (!manifest.id || !VALID_ID.test(manifest.id)) {
         throw new Error('plugin.json needs an "id" (letters, numbers, . _ - only)');
     }
-    if (!manifest.name) {
+    if (typeof manifest.name !== 'string' || !manifest.name) { // Name is used in the UI, so it must be a non-empty string. I will explode you if you use an empty string.
         throw new Error('plugin.json needs a "name"');
     }
     return manifest;
@@ -80,9 +80,12 @@ export async function listPlugins() {
             plugins.push({
                 id: entry.name,
                 name: manifest.name,
-                author: manifest.author ?? 'Unknown',
-                description: manifest.description ?? '',
-                documentation: manifest.documentation ?? [],
+                author: typeof manifest.author === 'string' ? manifest.author : 'Unknown',
+                version: typeof manifest.version === 'string' ? manifest.version : '',
+                description: typeof manifest.description === 'string' ? manifest.description : '',
+                documentation: Array.isArray(manifest.documentation)
+                    ? manifest.documentation.filter(line => typeof line === 'string')
+                    : [],
                 icon: await loadIcon(dir, manifest.icon),
                 enabled: state[entry.name]?.enabled ?? true,
             });

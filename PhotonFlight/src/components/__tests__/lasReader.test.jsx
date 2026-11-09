@@ -11,10 +11,7 @@ vi.mock('@react-three/drei', () => ({
   Grid: () => <div data-testid="grid" />,
   GizmoHelper: ({ children }) => <div>{children}</div>,
   GizmoViewport: () => <div data-testid="gizmo" />,
-// vi.mock('@react-three/drei', () => ({
-//   GizmoHelper: ({ children }) => <div>{children}</div>,
-//   GizmoViewport: () => <div data-testid="gizmo" />,
-// }));
+}));
 
 vi.mock('@clerk/electron/react', () => ({
   useAuth: () => ({ getToken: vi.fn() }),

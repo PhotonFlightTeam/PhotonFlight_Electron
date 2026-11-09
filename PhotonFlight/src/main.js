@@ -2,7 +2,7 @@ import { app, BrowserWindow, Menu, dialog, ipcMain } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import fs from 'node:fs/promises';
-import { registerPluginHandlers, importPlugin } from './pluginManager';
+import { registerPluginHandlers } from './pluginManager';
 import { createClerkBridge } from '@clerk/electron';
 import { storage } from '@clerk/electron/storage';
 import { spawn } from 'node:child_process'
