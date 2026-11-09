@@ -38,7 +38,7 @@ export default function OAuth() {
 
         let isCurrent = true;
         setProvisionError(null);
-        window.electronAPI?.setDatabaseMenuEnabled?.(false);
+        window.electronAPI?.setDatabaseMenuEnabled?.(true);
 
         const registerUser = async () => {
             try {
@@ -64,9 +64,6 @@ export default function OAuth() {
                     throw new Error(detail?.detail ?? `Could not register the user (${response.status}).`);
                 }
 
-                if (isCurrent) {
-                    window.electronAPI?.setDatabaseMenuEnabled?.(true);
-                }
             } catch (error) {
                 if (isCurrent) {
                     setProvisionError(error instanceof Error ? error.message : String(error));

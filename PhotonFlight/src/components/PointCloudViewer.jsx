@@ -76,6 +76,10 @@ export default function PointCloudViewer({ fileUrl, active, pointsRef }) {
         setAllPointCloudColors(baseColor);
         const baseColors = useStore.getState().colors;
         geo.setAttribute('color', new THREE.BufferAttribute(baseColors, 3));
+      } else if (active === 'height') {
+        applyHeightMapColor(geo, positions, rgbMinMax);
+      } else if (active === 'slope') {
+        applySlopeMapColor(geo, positions, rgbMinMax);
       } else {
         geo.deleteAttribute('color');
       }
@@ -114,7 +118,7 @@ export default function PointCloudViewer({ fileUrl, active, pointsRef }) {
       />
       <points ref={pointsRef} geometry={geo} >
         <pointsMaterial
-          color={mode === 'light' ? '#102a43' : '#eaf6ff'}
+          color={geo.attributes?.color ? '#ffffff' : mode === 'light' ? '#102a43' : '#eaf6ff'}
           size={0.05} // Adjust thickness based on data density
           vertexColors={!!geo.attributes?.color} // Use laser-captured color metrics if available
           sizeAttenuation={true} // Near points appear larger than distant points

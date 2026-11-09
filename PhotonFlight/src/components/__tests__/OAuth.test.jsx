@@ -55,7 +55,7 @@ describe('OAuth', () => {
     expect(window.electronAPI.setDatabaseMenuEnabled).toHaveBeenLastCalledWith(false);
   });
 
-  it('registers an authenticated Clerk user before enabling the database menu', async () => {
+  it('enables the database menu immediately for an authenticated Clerk user', async () => {
     clerkMocks.user = {
       isLoaded: true,
       isSignedIn: true,
@@ -68,6 +68,8 @@ describe('OAuth', () => {
     };
 
     render(<OAuth />);
+
+    expect(window.electronAPI.setDatabaseMenuEnabled).toHaveBeenLastCalledWith(true);
 
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledWith(
@@ -86,7 +88,7 @@ describe('OAuth', () => {
     expect(clerkMocks.getToken).toHaveBeenCalledWith({ template: 'photonflight' });
   });
 
-  it('keeps the database menu disabled and reports a registration failure', async () => {
+  it('reports registration failures without disabling the menu for signed-in users', async () => {
     clerkMocks.user = {
       isLoaded: true,
       isSignedIn: true,
@@ -108,7 +110,7 @@ describe('OAuth', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Could not connect your account to the database: Database operation unavailable.',
     );
-    expect(window.electronAPI.setDatabaseMenuEnabled).toHaveBeenLastCalledWith(false);
+    expect(window.electronAPI.setDatabaseMenuEnabled).toHaveBeenLastCalledWith(true);
   });
 
   it('opens the viewer in offline mode and clears guest state on sign-out', async () => {

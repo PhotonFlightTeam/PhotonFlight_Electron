@@ -9,7 +9,7 @@ function getWindow(baseWindow: BaseWindow | undefined): BrowserWindow | null {
   return BrowserWindow.getFocusedWindow();
 }
 
-export function setupApplicationMenu(themeMode: 'dark' | 'light' = 'dark'): void {
+export function setupApplicationMenu(themeMode: 'dark' | 'light' = 'dark', databaseMenuEnabled = false,): void {
   const template: MenuItemConstructorOptions[] = [
     {
       label: 'File',
@@ -48,6 +48,14 @@ export function setupApplicationMenu(themeMode: 'dark' | 'light' = 'dark'): void
               window.webContents.send('file-exported', filePath);
             }
           },
+        },
+        {
+          label: 'Database',
+          id: 'database',
+          enabled: databaseMenuEnabled,
+          click: (_menuItem, browserWindow) => {
+            browserWindow?.webContents.send('open-database-browser');
+          }
         },
         { type: 'separator' },
         { role: 'quit' },
