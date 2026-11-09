@@ -87,7 +87,7 @@ describe('LasViewer', () => {
   it('switches active tools and clears cached colors on view changes', () => {
     render(<LasViewer fileUrl="initial.laz" />);
 
-    fireEvent.click(screen.getAllByRole('button')[1]);
+    fireEvent.click(screen.getByRole('button', { name: 'Measure' }));
     expect(screen.getAllByTestId('measure-tool').some(
       (tool) => tool.getAttribute('data-tool') === 'Measure',
     )).toBe(true);
