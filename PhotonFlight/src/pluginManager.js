@@ -93,7 +93,7 @@ export async function listPlugins() {
 }
 
 // Opens a foldere picker, validates plugin.json (and icon), and copies the folder into the plugins dir.
-// Returns the new plugin's id, or null if the user cancelled
+// Returns the new plugin's id, or null if the user cancelled (Also, TS is BROKEN and I don't know what to do :D)
 
 export async function importPlugin(browserWindow) {
     const { canceled, filePaths } = await dialog.showOpenDialog(browserWindow, {
@@ -105,7 +105,10 @@ export async function importPlugin(browserWindow) {
     const sourceDir = filePaths[0];
     const manifest = await readManifest(sourceDir);
     await fs.mkdir(pluginsDir(), { recursive: true });
-    await fs.cp(sourceDir, pluginPath(manifest.id), { recursive: true, force: true });
+    const target = pluginPath(manifest.id);
+    if (path.resolve(sourceDir) === target) throw new Error('That plugin is already installed from this folder.');
+    await fs.rm(target, { recursive: true, force: true }); // Clears files a newer version removed
+    await fs.cp(sourceDir, target, { recursive: true });
     return manifest.id;
 }
 
