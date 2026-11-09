@@ -11,7 +11,7 @@ describe('colorCircle', () => {
   it('colors points strictly inside the radius and updates the geometry attribute', () => {
     const positions = new Float32Array([
       0, 0, 0,
-      0.3, 0.4, 0,
+      0.3, 0.3, 0,
       0.5, 0, 0,
     ]);
     const colors = new Float32Array(positions.length);

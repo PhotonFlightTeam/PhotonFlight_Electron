@@ -94,28 +94,32 @@ export default function PointCloudViewer({ fileUrl, active, pointsRef }) {
     } 
   }, [pointData, active, rgbMinMax, mode]);
 
-  if (!fileUrl || loading || error || !geo) return null;
+    if (!fileUrl || loading || error || !geo.isBufferGeometry) return null;
 
   const bounds = geo.boundingBox;
-  const cloudHeight = bounds?.max.y - bounds?.min.y;
-  const floorY = bounds?.min.y - Math.max(1, cloudHeight * 0.04);
+  const cloudHeight = bounds.max.z - bounds.min.z;
+  const floorZ = bounds.min.z - Math.max(1, cloudHeight * 0.04);
+  const span = Math.max(bounds.max.x - bounds.min.x, bounds.max.y - bounds.min.y, 1);
+  const cellSize = 10 ** Math.floor(Math.log10(span / 20));
 
   return (
     <>
-      <Grid
-        position={[0, floorY, 0]}
-        args={[100, 100]}
-        cellSize={1}
-        cellThickness={0.45}
-        cellColor={mode === 'light' ? '#93a8b8' : '#31506f'}
-        sectionSize={10}
-        sectionThickness={0.9}
-        sectionColor={mode === 'light' ? '#52758c' : '#4c789c'}
-        fadeDistance={90}
-        fadeStrength={1}
-        infiniteGrid
-        renderOrder={-1}
-      />
+      {/* drei's Grid lies flat for Y-up; this scene is Z-up, so stand it on Z */}
+      <group position={[0, 0, floorZ]} rotation={[Math.PI / 2, 0, 0]}>
+        <Grid
+          args={[100, 100]}
+          cellSize={cellSize}
+          cellThickness={0.6}
+          cellColor={mode === 'light' ? '#a3a3a3' : '#4f4f4f'}
+          sectionSize={cellSize * 10}
+          sectionThickness={1}
+          sectionColor={mode === 'light' ? '#7f7f7f' : '#6b6b6b'}
+          fadeDistance={span * 3}
+          fadeStrength={1}
+          infiniteGrid
+          renderOrder={-1}
+        />
+      </group>
       <points ref={pointsRef} geometry={geo} >
         <pointsMaterial
           color={geo.attributes?.color ? '#ffffff' : mode === 'light' ? '#102a43' : '#eaf6ff'}

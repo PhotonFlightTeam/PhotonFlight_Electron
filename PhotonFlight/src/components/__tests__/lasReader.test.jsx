@@ -58,6 +58,8 @@ describe('LasViewer', () => {
       onOpenPluginLibrary: vi.fn(() => unsubscribePluginLibrary),
       readFile: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
       saveFile: vi.fn().mockResolvedValue(undefined),
+      listPlugins: vi.fn().mockResolvedValue([]),
+      onPluginsChanged: vi.fn(() => vi.fn()),
     };
     useStore.setState({ colors: new Float32Array([1, 0, 0]), positions: new Float32Array([0, 0, 0]) });
   });

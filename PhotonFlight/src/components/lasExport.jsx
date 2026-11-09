@@ -67,6 +67,7 @@ export function encodeLas(mesh, source) {
 
     if (colors) {
       // (255 * 257) = 65535, the max value for a 16-bit unsigned integer. 
+      
       view.setUint16(cursor + 22, colors[i * 4 + 1] * 257, true);
       view.setUint16(cursor + 24, colors[i * 4 + 2] * 257, true);
     }

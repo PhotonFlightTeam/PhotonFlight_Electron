@@ -31,9 +31,8 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
   const [zoom, setZoom] = useState(180);
   const [zoomRequest, setZoomRequest] = useState({ value: 180 });
   const [activeTool, setActiveTool] = useState('Select');
-    const pointsRef = useRef(); // The <points> object. MeasureTool and PinTool raycast against it. Empty until mount, like my will to debug this 
+  const pointsRef = useRef(); // The <points> object. MeasureTool and PinTool raycast against it. Empty until mount, like my will to debug this 
   const fileSourceRef = useRef(initialFileUrl); // The export listener was born on the first render and never left. Reminds me of how she was "reborn" and then left me immediately.
-  fileSourceRef.current = fileSource;
   fileSourceRef.current = fileSource;
 
   // Plugin library 
