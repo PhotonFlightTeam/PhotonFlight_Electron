@@ -125,7 +125,7 @@ export function PluginSidebar({ plugins, selectedId, onSelect, onClose, onImport
                     open={!!addMenuAnchor}
                     onClose={() => setAddMenuAnchor(null)}>
                     <MenuItem onClick={handleAddFromDevice}>From Device</MenuItem>
-                    <MenuItem disabled>From Market (coming soon)</MenuItem>
+                    <MenuItem disabled>From Market</MenuItem>
                 </Menu>
             </div>
         </aside>

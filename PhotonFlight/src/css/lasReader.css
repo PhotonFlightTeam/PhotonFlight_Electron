@@ -1,6 +1,7 @@
 .las-viewer {
 	width: 100vw;
 	height: 100vh;
+	display: flex;
 	position: relative;
 	overflow: hidden;
 	isolation: isolate;
@@ -10,7 +11,6 @@
 		linear-gradient(145deg, #07111f 0%, #0b1b2b 48%, #101827 100%);
 }
 
-/* Crisp, cool daylight treatment for the LAS sandbox. */
 .las-viewer[data-theme='light'] {
 	background:
 		radial-gradient(circle at 72% 24%, rgba(56, 189, 248, 0.22), transparent 30%),
@@ -54,6 +54,34 @@
 	position: relative;
 	z-index: 1;
 	background: transparent;
+}
+
+.activity-bar {
+	width: 48px;
+	flex-shrink: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding-top: 4px;
+	background: #2c2c2c;
+	z-index: 30;
+}
+
+.activity-bar .MuiIconButton-root {
+	width: 48px;
+	height: 48px;
+	border-radius: 0;
+	color: #858585;
+	border-left: 2px solid transparent;
+}
+
+.activity-bar .MuiIconButton-root:hover,
+.activity-bar .MuiIconButton-root.active {
+	color: #ffffff;
+}
+
+.activity-bar .MuiIconButton-root.active {
+	border-left-color: #ffffff;
 }
 
 .tool-bar {
