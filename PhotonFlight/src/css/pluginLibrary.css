@@ -4,14 +4,14 @@
 	flex-shrink: 0;
 	display: flex;
 	flex-direction: column;
-	background: linear-gradient(180deg, #10243a, #081726);
+	background: linear-gradient(180deg, #060f1b, #081321);
 	border-right: 1px solid rgba(125, 211, 252, 0.18);
 	color: #eaf6ff;
 	z-index: 30;
 }
 
 .las-viewer[data-theme='light'] .plugin-sidebar {
-	background: linear-gradient(180deg, #f8fbfd, #eaf3f8);
+	background: linear-gradient(180deg, #eaf3f8, #d4e3eb);
 	border-right-color: rgba(2, 105, 161, 0.18);
 	color: #102a43;
 }
