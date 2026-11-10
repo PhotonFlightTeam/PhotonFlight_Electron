@@ -48,7 +48,7 @@ describe('DatabaseBrowser', () => {
     expect(await screen.findByText('site.laz')).toBeInTheDocument();
     expect(screen.getByText(/LAZ · Map: Campus/)).toBeInTheDocument();
     expect(fetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:8000/api/lidar?limit=50&offset=0',
+      'http://127.0.0.1:8000/api/lidar?map_id=5&limit=50&offset=0',
       { headers: { Authorization: 'Bearer session-token' } },
     );
     expect(fetch).toHaveBeenCalledWith(
@@ -56,6 +56,70 @@ describe('DatabaseBrowser', () => {
       { headers: { Authorization: 'Bearer session-token' } },
     );
     expect(clerkMocks.getToken).toHaveBeenCalledWith({ template: 'photonflight' });
+  });
+
+  it('reloads lidar files when the selected map changes', async () => {
+    const maps = [
+      { map_id: 5, name: 'Campus' },
+      { map_id: 6, name: 'Annex' },
+    ];
+    fetch.mockImplementation(async (url) => {
+      if (String(url).includes('/api/maps')) {
+        return { ok: true, json: async () => maps };
+      }
+      const mapId = new URL(url).searchParams.get('map_id');
+      return {
+        ok: true,
+        json: async () => [{
+          ...lidarFiles[0],
+          map_id: Number(mapId),
+          file_location: mapId === '6' ? 'annex.laz' : 'site.laz',
+        }],
+      };
+    });
+    render(<DatabaseBrowser />);
+
+    act(() => openDatabaseBrowser());
+    expect(await screen.findByText('site.laz')).toBeInTheDocument();
+
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Map' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Annex' }));
+
+    expect(await screen.findByText('annex.laz')).toBeInTheDocument();
+    expect(screen.queryByText('site.laz')).not.toBeInTheDocument();
+    expect(fetch.mock.calls.map(([url]) => String(url))).toContain(
+      'http://127.0.0.1:8000/api/lidar?map_id=6&limit=50&offset=0',
+    );
+  });
+
+  it('loads additional pages for the selected map', async () => {
+    const page = Array.from({ length: 50 }, (_, index) => ({
+      ...lidarFiles[0],
+      lidar_id: index + 1,
+      file_location: `site-${index}.laz`,
+    }));
+    fetch.mockImplementation(async (url) => {
+      if (String(url).includes('/api/maps')) {
+        return { ok: true, json: async () => userMaps };
+      }
+      const offset = Number(new URL(url).searchParams.get('offset'));
+      return {
+        ok: true,
+        json: async () => offset === 0
+          ? page
+          : page.map((file) => ({ ...file, lidar_id: file.lidar_id + 50 })),
+      };
+    });
+    render(<DatabaseBrowser />);
+
+    act(() => openDatabaseBrowser());
+    fireEvent.click(await screen.findByRole('button', { name: 'Load more' }));
+
+    await waitFor(() => {
+      expect(fetch.mock.calls.map(([url]) => String(url))).toContain(
+        'http://127.0.0.1:8000/api/lidar?map_id=5&limit=50&offset=50',
+      );
+    });
   });
 
   it('creates a map and selects it for uploads when the account has no maps', async () => {
@@ -106,7 +170,9 @@ describe('DatabaseBrowser', () => {
     render(<DatabaseBrowser currentFile={currentFile} onLoadFile={vi.fn()} />);
 
     act(() => openDatabaseBrowser());
-    fireEvent.click(await screen.findByRole('button', { name: 'Upload current file' }));
+    const uploadButton = await screen.findByRole('button', { name: 'Upload current file' });
+    await waitFor(() => expect(uploadButton).toBeEnabled());
+    fireEvent.click(uploadButton);
 
     await waitFor(() => {
       const uploadCall = fetch.mock.calls.find(([url]) => String(url).endsWith('/api/lidar/upload'));

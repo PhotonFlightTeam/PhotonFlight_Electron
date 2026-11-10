@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@clerk/electron/react';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
@@ -43,6 +43,9 @@ export default function DatabaseBrowser({ currentFile, onLoadFile }) {
   const [error, setError] = useState(null);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+  const filesRequestId = useRef(0);
+  const selectedMapIdRef = useRef(selectedMapId);
+  selectedMapIdRef.current = selectedMapId;
 
   const getAuthHeaders = useCallback(async () => {
     const token = await getToken({ template: CLERK_JWT_TEMPLATE });
@@ -52,10 +55,12 @@ export default function DatabaseBrowser({ currentFile, onLoadFile }) {
     return { Authorization: `Bearer ${token}` };
   }, [getToken]);
 
-  const loadFiles = useCallback(async (append = false) => {
+  const loadFiles = useCallback(async (mapId, append = false, requestOffset = 0) => {
+    if (!mapId) return;
+
+    const requestId = ++filesRequestId.current;
     setLoading(true);
     setError(null);
-    const requestOffset = append ? offset : 0;
     if (!append) {
       setFiles([]);
       setOffset(0);
@@ -63,7 +68,7 @@ export default function DatabaseBrowser({ currentFile, onLoadFile }) {
     }
     try {
       const response = await fetch(
-        `${API_URL}/api/lidar?limit=${PAGE_SIZE}&offset=${requestOffset}`,
+        `${API_URL}/api/lidar?map_id=${mapId}&limit=${PAGE_SIZE}&offset=${requestOffset}`,
         { headers: await getAuthHeaders() },
       );
       if (!response.ok) {
@@ -74,15 +79,17 @@ export default function DatabaseBrowser({ currentFile, onLoadFile }) {
       if (!Array.isArray(result)) {
         throw new Error('The lidar service returned an invalid response.');
       }
+      if (requestId !== filesRequestId.current) return;
       setFiles((current) => append ? [...current, ...result] : result);
       setOffset(requestOffset + result.length);
       setHasMore(result.length === PAGE_SIZE);
     } catch (loadError) {
+      if (requestId !== filesRequestId.current) return;
       setError(loadError instanceof Error ? loadError.message : String(loadError));
     } finally {
-      setLoading(false);
+      if (requestId === filesRequestId.current) setLoading(false);
     }
-  }, [getAuthHeaders, offset]);
+  }, [getAuthHeaders]);
 
   const loadMaps = useCallback(async () => {
     setMapsLoading(true);
@@ -128,10 +135,23 @@ export default function DatabaseBrowser({ currentFile, onLoadFile }) {
 
     return window.electronAPI.onOpenDatabaseBrowser(() => {
       setOpen(true);
-      void loadFiles();
       void loadMaps();
     });
-  }, [loadFiles, loadMaps]);
+  }, [loadMaps]);
+
+
+  useEffect(() => {
+    if (!open || !selectedMapId) {
+      filesRequestId.current += 1;
+      setFiles([]);
+      setOffset(0);
+      setHasMore(false);
+      setLoading(false);
+      return;
+    }
+
+    void loadFiles(selectedMapId);
+  }, [loadFiles, open, selectedMapId]);
 
   const createMap = async (event) => {
     event.preventDefault();
@@ -188,7 +208,9 @@ export default function DatabaseBrowser({ currentFile, onLoadFile }) {
         throw await getResponseError(response, 'Could not upload lidar file');
       }
 
-      await loadFiles();
+      if (selectedMapIdRef.current === selectedMapId) {
+        await loadFiles(selectedMapId);
+      }
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : String(uploadError));
     } finally {
@@ -301,7 +323,7 @@ export default function DatabaseBrowser({ currentFile, onLoadFile }) {
           Available lidar files
         </Typography>
         {!loading && files.length === 0 && (
-          <Typography>No lidar files are associated with your account.</Typography>
+          <Typography>No lidar files are associated with this map and account.</Typography>
         )}
         {files.length > 0 && (
           <List aria-label="Available lidar files">
@@ -326,7 +348,7 @@ export default function DatabaseBrowser({ currentFile, onLoadFile }) {
           </List>
         )}
         {hasMore && (
-          <Button disabled={loading} onClick={() => void loadFiles(true)}>
+          <Button disabled={loading} onClick={() => void loadFiles(selectedMapId, true, offset)}>
             Load more
           </Button>
         )}
@@ -335,7 +357,7 @@ export default function DatabaseBrowser({ currentFile, onLoadFile }) {
         {error && (
           <Button
             onClick={() => {
-              void loadFiles();
+              void loadFiles(selectedMapId);
               void loadMaps();
             }}
           >

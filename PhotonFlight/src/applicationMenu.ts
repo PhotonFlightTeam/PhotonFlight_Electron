@@ -50,7 +50,7 @@ export function setupApplicationMenu(themeMode: 'dark' | 'light' = 'dark', datab
           },
         },
         {
-          label: 'Database',
+          label: 'Maps',
           id: 'database',
           enabled: databaseMenuEnabled,
           click: (_menuItem, browserWindow) => {
