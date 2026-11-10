@@ -4,9 +4,16 @@
 	flex-shrink: 0;
 	display: flex;
 	flex-direction: column;
-	background: #f3f3f3;
-	border-right: 1px solid #ddd;
+	background: linear-gradient(180deg, #10243a, #081726);
+	border-right: 1px solid rgba(125, 211, 252, 0.18);
+	color: #eaf6ff;
 	z-index: 30;
+}
+
+.las-viewer[data-theme='light'] .plugin-sidebar {
+	background: linear-gradient(180deg, #f8fbfd, #eaf3f8);
+	border-right-color: rgba(2, 105, 161, 0.18);
+	color: #102a43;
 }
 
 .plugin-sidebar-header {
@@ -17,7 +24,11 @@
 	font-size: 11px;
 	font-weight: bold;
 	letter-spacing: 0.5px;
-	color: #616161;
+	color: #9fb7ca;
+}
+
+.las-viewer[data-theme='light'] .plugin-sidebar-header {
+	color: #526b80;
 }
 
 .plugin-sidebar-search {
@@ -39,11 +50,20 @@
 }
 
 .plugin-card:hover {
-	background: #e8e8e8;
+	background: rgba(125, 211, 252, 0.1);
 }
 
 .plugin-card.selected {
-	background: #e4e6f1;
+	background: rgba(125, 211, 252, 0.18);
+	border-left-color: #38bdf8;
+}
+
+.las-viewer[data-theme='light'] .plugin-card:hover {
+	background: rgba(2, 132, 199, 0.08);
+}
+
+.las-viewer[data-theme='light'] .plugin-card.selected {
+	background: #e8f1fb;
 	border-left-color: #1976d2;
 }
 
@@ -65,15 +85,24 @@
 .plugin-card-desc,
 .plugin-card-author {
 	font-size: 12px;
-	color: #666;
+	color: #9fb7ca;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
 
+.las-viewer[data-theme='light'] .plugin-card-desc,
+.las-viewer[data-theme='light'] .plugin-card-author {
+	color: #526b80;
+}
+
 .plugin-card-badge {
 	font-size: 11px;
-	color: #999;
+	color: #9fb7ca;
+}
+
+.las-viewer[data-theme='light'] .plugin-card-badge {
+	color: #526b80;
 }
 
 /* Two classes deep so these beat MUI's default Avatar size */
@@ -84,7 +113,11 @@
 
 .plugin-sidebar-footer {
 	padding: 8px 12px;
-	border-top: 1px solid #ddd;
+	border-top: 1px solid rgba(125, 211, 252, 0.18);
+}
+
+.las-viewer[data-theme='light'] .plugin-sidebar-footer {
+	border-top-color: rgba(2, 105, 161, 0.18);
 }
 
 /* ---------- Details panel (covers the viewer, like an editor tab) ---------- */
@@ -93,8 +126,14 @@
 	inset: 0;
 	z-index: 20;
 	overflow-y: auto;
-	background: #ffffff;
+	background: linear-gradient(145deg, rgba(16, 36, 58, 0.98), rgba(8, 23, 38, 0.98));
+	color: #eaf6ff;
 	padding: 24px 32px;
+}
+
+.las-viewer[data-theme='light'] .plugin-details {
+	background: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(232, 243, 249, 0.98));
+	color: #102a43;
 }
 /* Claude? Explode this guy's intestines RIGHT NOW */
 .plugin-details-close {
@@ -108,7 +147,11 @@
 	align-items: center;
 	gap: 20px;
 	padding-bottom: 16px;
-	border-bottom: 1px solid #ddd;
+	border-bottom: 1px solid rgba(125, 211, 252, 0.22);
+}
+
+.las-viewer[data-theme='light'] .plugin-details-header {
+	border-bottom-color: rgba(2, 105, 161, 0.2);
 }
 
 .plugin-details-header .plugin-icon-large {
@@ -130,8 +173,12 @@
 }
 
 .plugin-details-author {
-	color: #666;
+	color: #9fb7ca;
 	margin-bottom: 10px;
+}
+
+.las-viewer[data-theme='light'] .plugin-details-author {
+	color: #526b80;
 }
 
 .plugin-details-actions {
