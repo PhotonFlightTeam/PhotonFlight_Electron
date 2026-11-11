@@ -1,6 +1,7 @@
 import { app, BrowserWindow, Menu, dialog, ipcMain } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
+import { existsSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import { registerPluginHandlers } from './pluginManager';
 import { createClerkBridge } from '@clerk/electron';
@@ -39,15 +40,18 @@ const startPythonBackend = () => {
     const backendDirectory = path.join(app.getAppPath(),
       'src', 
       'backend');
-    backendPath = path.join(backendDirectory,
-      'venv',
-      process.platform === 'win32' ? 'Scripts' : 'bin',
-      process.platform === 'win32' ? 'uvicorn.exe' : 'uvicorn');
+    const executableDirectory = process.platform === 'win32' ? 'Scripts' : 'bin';
+    const executableName = process.platform === 'win32' ? 'uvicorn.exe' : 'uvicorn';
+    const virtualEnvironment = ['venv', '.venv']
+      .map((directory) => path.join(backendDirectory, directory))
+      .find((directory) => existsSync(path.join(directory, executableDirectory, executableName)))
+      ?? path.join(backendDirectory, 'venv');
+    backendPath = path.join(virtualEnvironment, executableDirectory, executableName);
     args = ['app.main:app', '--host', '127.0.0.1', '--port', '8000'];
   } else {
 
-    backendPath = path.join(process.resourcesPath, 'backend_dist', 'main');
-    if (process.platform === 'win32') backendPath += '.exe';
+    const backendExecutable = process.platform === 'win32' ? 'main.exe' : 'main';
+    backendPath = path.join(process.resourcesPath, 'run', backendExecutable);
   }
 
   pythonProcess = spawn(backendPath, args, {

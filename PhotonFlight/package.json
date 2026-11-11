@@ -8,8 +8,8 @@
   "build" : {
     "extraResources": [
       {
-        "from": "backend/dist/run",
-        "to": "backend_dist",
+        "from": "src/backend/dist/run",
+        "to": "run",
         "filter": ["**/*"]
       }
     ]

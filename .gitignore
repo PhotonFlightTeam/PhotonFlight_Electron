@@ -90,3 +90,17 @@ typings/
 
 # Electron-Forge
 out/
+
+# Test files and directories
+**/__tests__/
+**/_test_/
+**/tests/
+**/test/
+**/*.test.*
+**/*.spec.*
+**/test_*.py
+**/*_test.py
+__pycache__/
+*.py[cod]
+
+.venv/

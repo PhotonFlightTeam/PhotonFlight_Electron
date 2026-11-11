@@ -6,6 +6,17 @@ To run the application:
 2. run npm install  
 3. run npm start
 
+## Python backend
+
+In development, the Electron main process starts Uvicorn from the backend
+virtual environment at `PhotonFlight/src/backend/venv` or `.venv` (Windows:
+`Scripts/uvicorn.exe`; Linux and macOS: `bin/uvicorn`).
+
+Packaged builds include the platform-specific backend executable from
+`PhotonFlight/src/backend/dist/run` as an Electron resource. Name it `main.exe`
+for Windows builds and `main` for Linux/macOS builds; the build executable must
+match the target operating system.
+
 ## Database Lidar Browser
 
 The File > Database menu is enabled for signed-in Clerk users and disabled in
