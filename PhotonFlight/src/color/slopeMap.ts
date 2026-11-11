@@ -47,25 +47,29 @@ function getSteepestSlopesIndexed(points: Float32Array, searchRadius = 0.25): Fl
   return steepestSlopes;
 }
 
+export function calculateSlopeMapColors(
+  positions: Float32Array,
+  rgbMinMax: RgbMinMax
+): Float32Array {
+  const colors = new Float32Array(positions.length);
+  const slopes = getSteepestSlopesIndexed(positions);
+
+  for (let i = 0; i < colors.length; i += 3) {
+    const slope = slopes[i / 3];
+    colors[i] = rgbMinMax.min[0] + (rgbMinMax.max[0] - rgbMinMax.min[0]) * slope;
+    colors[i + 1] = rgbMinMax.min[1] + (rgbMinMax.max[1] - rgbMinMax.min[1]) * slope;
+    colors[i + 2] = rgbMinMax.min[2] + (rgbMinMax.max[2] - rgbMinMax.min[2]) * slope;
+  }
+
+  return colors;
+}
 
 export function applySlopeMapColor(
   geo: THREE.BufferGeometry,
   positions: Float32Array,
   rgbMinMax: RgbMinMax
 ): void {
-
-      // Create a color gradient based on slope if no RGB data is present
-      const colors = new Float32Array(positions.length);
-      const slopes = getSteepestSlopesIndexed(positions);
-      
-
-      for (let i = 0; i < colors.length; i += 3) { // Set colors based on normalized height
-        const slope = slopes[i / 3];
-        colors[i] = rgbMinMax.min[0] + (rgbMinMax.max[0] - rgbMinMax.min[0]) * slope;
-        colors[i + 1] = rgbMinMax.min[1] + (rgbMinMax.max[1] - rgbMinMax.min[1]) * slope;
-        colors[i + 2] = rgbMinMax.min[2] + (rgbMinMax.max[2] - rgbMinMax.min[2]) * slope;
-      }
-
-      useStore.setState({ colors: colors }); // Store the generated colors in Zustand state
-      geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    }
+  const colors = calculateSlopeMapColors(positions, rgbMinMax);
+  useStore.setState({ colors });
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+}

@@ -3,7 +3,7 @@ import { LASLoader } from '@loaders.gl/las';
 import { applyHeightMapColor } from '../color/heightMap';
 import { applySlopeMapColor } from '../color/slopeMap';
 import { Grid } from '@react-three/drei';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import * as THREE from 'three';
 import useStore from '../useStore';
 import { usePointCloudTheme } from '../theme/pointCloudTheme';
@@ -21,6 +21,7 @@ export default function PointCloudViewer({ fileUrl, active, pointsRef }) {
   const [rgbMinMax, setRgbMinMax] = useState({ min: useStore.getState().min, max: useStore.getState().max });
   const setAllPointCloudColors = useStore((state) => state.setAllPointCloudColors)
   const setPositions = useStore((state) => state.setPositions)
+  const colors = useStore((state) => state.colors)
   // Parses the LiDAR data
   useEffect(() => {
     let cancelled = false;
@@ -61,8 +62,10 @@ export default function PointCloudViewer({ fileUrl, active, pointsRef }) {
   }, [fileUrl]);
 
 
-  // Build Three.js Buffer Geometry using useMemo
+  // Build Three.js Buffer Geometry
   useEffect(() => {
+    let slopeWorker;
+
     if (pointData && pointData.attributes.POSITION) {
       const geo = new THREE.BufferGeometry();
       const positions = pointData.attributes.POSITION.value;
@@ -79,7 +82,32 @@ export default function PointCloudViewer({ fileUrl, active, pointsRef }) {
       } else if (active === 'height') {
         applyHeightMapColor(geo, positions, rgbMinMax);
       } else if (active === 'slope') {
-        applySlopeMapColor(geo, positions, rgbMinMax);
+        if (typeof Worker === 'undefined') {
+          applySlopeMapColor(geo, positions, rgbMinMax);
+        } else {
+          slopeWorker = new Worker(new URL('../workers/slopeWorker.ts', import.meta.url), {
+            type: 'module',
+          });
+          slopeWorker.onmessage = (event) => {
+            if (event.data.error) {
+              console.error('Failed to calculate slope colors:', event.data.error);
+              return;
+            }
+
+            const slopeColors = event.data.colors;
+            geo.setAttribute('color', new THREE.BufferAttribute(slopeColors, 3));
+            useStore.setState({ colors: slopeColors });
+          };
+          slopeWorker.onerror = (event) => {
+            console.error('Slope calculation worker failed:', event.message);
+          };
+
+          const workerPositions = positions.slice();
+          slopeWorker.postMessage(
+            { positions: workerPositions, rgbMinMax },
+            [workerPositions.buffer],
+          );
+        }
       } else {
         geo.deleteAttribute('color');
       }
@@ -91,7 +119,11 @@ export default function PointCloudViewer({ fileUrl, active, pointsRef }) {
       setGeo(geo)
     } else {
       setGeo([])
-    } 
+    }
+
+    return () => {
+      if (slopeWorker) slopeWorker.terminate();
+    };
   }, [pointData, active, rgbMinMax, mode]);
 
     if (!fileUrl || loading || error || !geo.isBufferGeometry) return null;
@@ -101,20 +133,22 @@ export default function PointCloudViewer({ fileUrl, active, pointsRef }) {
   const floorZ = bounds.min.z - Math.max(1, cloudHeight * 0.04);
   const span = Math.max(bounds.max.x - bounds.min.x, bounds.max.y - bounds.min.y, 1);
   const cellSize = 10 ** Math.floor(Math.log10(span / 20));
+  const fadeDistance = span * 5;
+  const gridSize = (2 * fadeDistance) / (1 + fadeDistance);
 
   return (
     <>
       {/* drei's Grid lies flat for Y-up; this scene is Z-up, so stand it on Z */}
       <group position={[0, 0, floorZ]} rotation={[Math.PI / 2, 0, 0]}>
         <Grid
-          args={[100, 100]}
+          args={[gridSize, gridSize]}
           cellSize={cellSize}
           cellThickness={0.6}
           cellColor={mode === 'light' ? '#a3a3a3' : '#4f4f4f'}
           sectionSize={cellSize * 10}
           sectionThickness={1}
           sectionColor={mode === 'light' ? '#7f7f7f' : '#6b6b6b'}
-          fadeDistance={span * 4}
+          fadeDistance={fadeDistance}
           fadeStrength={1}
           infiniteGrid
           renderOrder={-1}
@@ -124,7 +158,7 @@ export default function PointCloudViewer({ fileUrl, active, pointsRef }) {
         <pointsMaterial
           color={geo.attributes?.color ? '#ffffff' : mode === 'light' ? '#102a43' : '#eaf6ff'}
           size={0.05} // Adjust thickness based on data density
-          vertexColors={!!geo.attributes?.color} // Use laser-captured color metrics if available
+          vertexColors={!!geo.attributes?.color || !!colors} // Use laser-captured color metrics if available
           sizeAttenuation={true} // Near points appear larger than distant points
         />
       </points>

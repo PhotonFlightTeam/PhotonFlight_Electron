@@ -25,7 +25,6 @@ import { exportPointCloud } from './lasExport';
 export default function LasViewer({ fileUrl: initialFileUrl }) {
   const { mode } = usePointCloudTheme();
   const [active, setActive] = useState('base');
-  const [key, setKey] = useState(0);
   const [fileSource, setFileSource] = useState(initialFileUrl);
   const [currentFile, setCurrentFile] = useState(null);
   const [zoom, setZoom] = useState(180);
@@ -105,7 +104,6 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
   const handleChange = (event) => {
     setActive(event.target.value); 
     useStore.setState({ colors: null }); // Reset colors to trigger re-render
-    setKey(prevKey => prevKey + 1);
   };
 
     return (
@@ -139,8 +137,7 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
       <div className="viewer-area">
         <Canvas 
         camera={{ position: [0, 10, 50], fov: 60 }}
-        gl={{ alpha: true, antialias: true }}
-        key={key}>
+        gl={{ alpha: true, antialias: true }}>
           <ambientLight intensity={1.5} />
           <pointLight position={[10, 10, 10]} />
           
