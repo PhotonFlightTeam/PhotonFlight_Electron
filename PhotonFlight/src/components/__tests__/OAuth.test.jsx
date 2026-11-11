@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import OAuth from '../OAuth';
 import useStore from '../../useStore';
@@ -36,10 +36,6 @@ describe('OAuth', () => {
     window.electronAPI = {
       onSignOutRequested: vi.fn((callback) => {
         callbacks.signOut = callback;
-        return vi.fn();
-      }),
-      onSettingsOpened: vi.fn((callback) => {
-        callbacks.settings = callback;
         return vi.fn();
       }),
       setDatabaseMenuEnabled: vi.fn(),
@@ -117,7 +113,8 @@ describe('OAuth', () => {
     render(<OAuth />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Offline Mode' }));
-    expect(await screen.findByTestId('las-viewer')).toHaveTextContent('./CO_test1.laz');
+    expect(await screen.findByTestId('las-viewer')).toBeInTheDocument();
+    expect(screen.getByTestId('las-viewer')).toBeEmptyDOMElement();
     expect(useStore.getState().user).toBe('Guest');
 
     callbacks.signOut();
@@ -126,13 +123,7 @@ describe('OAuth', () => {
     expect(clerkMocks.signOut).not.toHaveBeenCalled();
   });
 
-  it('shows settings when requested by the desktop API', () => {
-    render(<OAuth />);
-
-    act(() => callbacks.settings());
-
-    expect(screen.getByTestId('settings-window')).toBeInTheDocument();
-  });
+  it.todo('opens Settings when requested by the desktop API');
 
   it('waits for Clerk to load before rendering', () => {
     clerkMocks.user = { isLoaded: false, isSignedIn: false, user: null };

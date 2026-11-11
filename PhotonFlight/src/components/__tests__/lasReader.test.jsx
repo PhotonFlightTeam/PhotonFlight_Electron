@@ -35,6 +35,26 @@ vi.mock('../ViewControls', () => ({
   default: () => <div data-testid="view-controls" />,
 }));
 
+vi.mock('../PluginLibrary', () => ({
+  usePlugins: () => ({
+    plugins: [],
+    error: null,
+    importPlugin: vi.fn(),
+    removePlugin: vi.fn(),
+    setPluginEnabled: vi.fn(),
+  }),
+  PluginSidebar: () => null,
+  PluginDetails: () => null,
+}));
+
+vi.mock('../DatabaseBrowser', () => ({
+  default: () => null,
+}));
+
+vi.mock('../lasExport', () => ({
+  exportPointCloud: vi.fn(),
+}));
+
 describe('LasViewer', () => {
   let callbacks;
   let unsubscribeImport;

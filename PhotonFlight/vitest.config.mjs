@@ -6,6 +6,8 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/components/__tests__/setup.js'],
+    pool: 'threads',
+    maxWorkers: 1,
     env: {
       VITE_CLERK_PUBLISHABLE_KEY: 'pk_test_component_tests',
     },

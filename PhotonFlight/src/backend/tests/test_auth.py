@@ -4,14 +4,13 @@ from unittest.mock import Mock
 import pytest
 from fastapi.testclient import TestClient
 
-from git.PhotonFlight.src.backend.app import auth
-from git.PhotonFlight.src.backend.app.auth import get_current_user_id
-from git.PhotonFlight.src.backend.app.config import Settings, _clerk_domain_from_publishable_key, get_settings
-from git.PhotonFlight.src.backend.app.database import get_connection
-from git.PhotonFlight.src.backend.app.main import app
+from src.backend.app import auth
+from src.backend.app.auth import get_current_user_id
+from src.backend.app.config import Settings, _clerk_domain_from_publishable_key, get_settings
+from src.backend.app.database import get_connection
+from src.backend.app.main import app
 
 TOKEN = "clerk-session-token"
-EMAIL = "pilot@example.com"
 USER_ID = 8
 HEADERS = {"Authorization": f"Bearer {TOKEN}"}
 
@@ -23,11 +22,7 @@ def api(monkeypatch):
         clerk_issuer="https://clerk.example",
         clerk_jwks_url="https://clerk.example/.well-known/jwks.json",
     )
-    claims = {
-        "sub": "clerk-user",
-        "email": EMAIL,
-        "email_verified": True,
-    }
+    claims = {"sub": "clerk-user"}
 
     class FakeJWKClient:
         def __init__(self, url, timeout):
@@ -44,7 +39,7 @@ def api(monkeypatch):
         assert key == "verified-key"
         assert algorithms == ["RS256"]
         assert issuer == settings.clerk_issuer
-        assert options == {"require": ["sub", "email", "email_verified"]}
+        assert options == {"require": ["sub"]}
         return dict(claims)
 
     monkeypatch.setattr(auth, "PyJWKClient", FakeJWKClient)
@@ -87,7 +82,7 @@ def test_clerk_verification_requires_configuration(api):
     connection.execute.assert_not_called()
 
 
-def test_verified_clerk_email_maps_to_database_user_id(api):
+def test_clerk_subject_maps_to_database_user_id(api):
     client, connection, _, _ = api
     user_lookup = Mock()
     user_lookup.fetchall.return_value = [{"user_id": USER_ID}]
@@ -99,10 +94,10 @@ def test_verified_clerk_email_maps_to_database_user_id(api):
 
     assert response.status_code == 200
     assert response.json() == []
-    email_sql, email_params = connection.execute.call_args_list[0].args
+    user_sql, user_params = connection.execute.call_args_list[0].args
     maps_sql, maps_params = connection.execute.call_args_list[1].args
-    assert "lower(email) = lower(%s)" in email_sql
-    assert email_params == (EMAIL,)
+    assert "clerk_user_id = %s" in user_sql
+    assert user_params == ("clerk-user",)
     assert "created_by" in str(maps_sql)
     assert maps_params == (USER_ID, 50, 0)
 
@@ -110,15 +105,15 @@ def test_verified_clerk_email_maps_to_database_user_id(api):
 @pytest.mark.parametrize(
     "user_rows,status_code,detail",
     [
-        ([], 404, "No database user is associated with this Clerk email."),
+        ([], 404, "No database user is associated with this Clerk ID."),
         (
             [{"user_id": 8}, {"user_id": 9}],
             409,
-            "Clerk email matches multiple database users.",
+            "Clerk ID matches multiple database users.",
         ),
     ],
 )
-def test_clerk_email_must_resolve_to_one_database_user(
+def test_clerk_subject_must_resolve_to_one_database_user(
     api, user_rows, status_code, detail
 ):
     client, connection, _, _ = api
@@ -131,14 +126,14 @@ def test_clerk_email_must_resolve_to_one_database_user(
     connection.execute.assert_called_once()
 
 
-def test_unverified_clerk_email_is_rejected_before_database_lookup(api):
+def test_empty_clerk_subject_is_rejected_before_database_lookup(api):
     client, connection, _, claims = api
-    claims["email_verified"] = False
+    claims["sub"] = " "
 
     response = client.get("/api/maps", headers=HEADERS)
 
-    assert response.status_code == 403
-    assert "email_verified: true" in response.json()["detail"]
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Invalid or expired Clerk session token."}
     connection.execute.assert_not_called()
 
 
