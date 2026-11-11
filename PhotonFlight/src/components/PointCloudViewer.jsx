@@ -114,7 +114,7 @@ export default function PointCloudViewer({ fileUrl, active, pointsRef }) {
           sectionSize={cellSize * 10}
           sectionThickness={1}
           sectionColor={mode === 'light' ? '#7f7f7f' : '#6b6b6b'}
-          fadeDistance={span * 3}
+          fadeDistance={span * 4}
           fadeStrength={1}
           infiniteGrid
           renderOrder={-1}
