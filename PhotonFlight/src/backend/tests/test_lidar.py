@@ -7,9 +7,9 @@ import psycopg
 import pytest
 from fastapi.testclient import TestClient
 
-from git.PhotonFlight.src.backend.app.auth import get_current_user_id
-from git.PhotonFlight.src.backend.app.database import get_connection
-from git.PhotonFlight.src.backend.app.main import app
+from src.backend.app.auth import get_current_user_id
+from src.backend.app.database import get_connection
+from src.backend.app.main import app
 
 USER_ID = 3
 HEADERS = {"Authorization": "Bearer test-token"}
@@ -134,6 +134,21 @@ def test_list_lidar_returns_metadata_without_file_data(api):
     assert response.json()[0]["file_location"] == "site.las"
     query = connection.execute.call_args.args[0]
     assert "file_data" not in str(query)
+
+
+def test_list_lidar_can_filter_by_owned_map(api):
+    client, connection = api
+
+    response = client.get(
+        "/api/lidar?map_id=12&limit=10&offset=20",
+        headers=HEADERS,
+    )
+
+    assert response.status_code == 200
+    query, params = connection.execute.call_args.args
+    assert "created_by" in str(query)
+    assert "AND map_id = %s" in str(query)
+    assert params == (USER_ID, 12, 10, 20)
 
 
 def test_download_returns_bytes_only_for_owned_lidar(api):

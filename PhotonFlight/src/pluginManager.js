@@ -47,7 +47,7 @@ async function readManifest(dir) {
     if (!manifest.id || !VALID_ID.test(manifest.id)) {
         throw new Error('plugin.json needs an "id" (letters, numbers, . _ - only)');
     }
-    if (!manifest.name) {
+    if (typeof manifest.name !== 'string' || !manifest.name) { // Name is used in the UI, so it must be a non-empty string. I will explode you if you use an empty string.
         throw new Error('plugin.json needs a "name"');
     }
     return manifest;
@@ -80,9 +80,12 @@ export async function listPlugins() {
             plugins.push({
                 id: entry.name,
                 name: manifest.name,
-                author: manifest.author ?? 'Unknown',
-                description: manifest.description ?? '',
-                documentation: manifest.documentation ?? [],
+                author: typeof manifest.author === 'string' ? manifest.author : 'Unknown',
+                version: typeof manifest.version === 'string' ? manifest.version : '',
+                description: typeof manifest.description === 'string' ? manifest.description : '',
+                documentation: Array.isArray(manifest.documentation)
+                    ? manifest.documentation.filter(line => typeof line === 'string')
+                    : [],
                 icon: await loadIcon(dir, manifest.icon),
                 enabled: state[entry.name]?.enabled ?? true,
             });
@@ -93,7 +96,7 @@ export async function listPlugins() {
 }
 
 // Opens a foldere picker, validates plugin.json (and icon), and copies the folder into the plugins dir.
-// Returns the new plugin's id, or null if the user cancelled
+// Returns the new plugin's id, or null if the user cancelled (Also, TS is BROKEN and I don't know what to do :D)
 
 export async function importPlugin(browserWindow) {
     const { canceled, filePaths } = await dialog.showOpenDialog(browserWindow, {
@@ -105,7 +108,10 @@ export async function importPlugin(browserWindow) {
     const sourceDir = filePaths[0];
     const manifest = await readManifest(sourceDir);
     await fs.mkdir(pluginsDir(), { recursive: true });
-    await fs.cp(sourceDir, pluginPath(manifest.id), { recursive: true, force: true });
+    const target = pluginPath(manifest.id);
+    if (path.resolve(sourceDir) === target) throw new Error('That plugin is already installed from this folder.');
+    await fs.rm(target, { recursive: true, force: true }); // Clears files a newer version removed
+    await fs.cp(sourceDir, target, { recursive: true });
     return manifest.id;
 }
 

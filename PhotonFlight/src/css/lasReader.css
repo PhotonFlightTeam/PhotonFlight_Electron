@@ -1,6 +1,7 @@
 .las-viewer {
 	width: 100vw;
 	height: 100vh;
+	display: flex;
 	position: relative;
 	overflow: hidden;
 	isolation: isolate;
@@ -10,35 +11,11 @@
 		linear-gradient(145deg, #07111f 0%, #0b1b2b 48%, #101827 100%);
 }
 
-/* Crisp, cool daylight treatment for the LAS sandbox. */
 .las-viewer[data-theme='light'] {
 	background:
 		radial-gradient(circle at 72% 24%, rgba(56, 189, 248, 0.22), transparent 30%),
 		radial-gradient(circle at 18% 82%, rgba(14, 165, 233, 0.14), transparent 34%),
 		linear-gradient(145deg, #f8fbfd 0%, #eaf3f8 48%, #dceaf1 100%);
-}
-
-.las-viewer[data-theme='light']::after {
-	box-shadow: inset 0 0 100px rgba(71, 105, 128, 0.16);
-}
-
-.las-viewer[data-theme='light']::before {
-	background-image:
-		linear-gradient(rgba(51, 112, 145, 0.07) 1px, transparent 1px),
-		linear-gradient(90deg, rgba(51, 112, 145, 0.07) 1px, transparent 1px);
-}
-
-.las-viewer::before {
-	content: '';
-	position: absolute;
-	inset: 0;
-	z-index: 0;
-	pointer-events: none;
-	background-image:
-		linear-gradient(rgba(148, 184, 213, 0.025) 1px, transparent 1px),
-		linear-gradient(90deg, rgba(148, 184, 213, 0.025) 1px, transparent 1px);
-	background-size: 32px 32px;
-	mask-image: radial-gradient(circle at center, black 35%, transparent 88%);
 }
 
 .las-viewer::after {
@@ -47,13 +24,85 @@
 	inset: 0;
 	z-index: 3;
 	pointer-events: none;
-	box-shadow: inset 0 0 120px rgba(0, 0, 0, 0.72);
+	box-shadow: inset 0 0 120px rgba(0, 0, 0, 0.5);
+}
+
+.las-viewer[data-theme='light']::after {
+	box-shadow: inset 0 0 100px rgba(71, 105, 128, 0.16);
 }
 
 .las-viewer canvas {
 	position: relative;
 	z-index: 1;
 	background: transparent;
+}
+
+.viewer-area {
+	flex: 1;
+	min-width: 0;
+	height: 100%;
+	position: relative;
+}
+
+.viewer-area canvas:focus {
+	outline: none;
+}
+
+.viewer-area {
+	flex: 1;
+	min-width: 0;
+	height: 100%;
+	position: relative;
+}
+
+.viewer-area canvas:focus {
+	outline: none;
+}
+
+.activity-bar {
+	width: 48px;
+	flex-shrink: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding-top: 4px;
+	background: linear-gradient(180deg, #10243a, #081726);
+	z-index: 30;
+}
+
+.las-viewer[data-theme='light'] .activity-bar {
+	background: linear-gradient(180deg, #f8fbfd, #e4eff5);
+	border-right: 1px solid rgba(2, 105, 161, 0.16);
+}
+
+.activity-bar .MuiIconButton-root {
+	width: 48px;
+	height: 48px;
+	border-radius: 0;
+	color: #9fb7ca;
+	border-left: 2px solid transparent;
+}
+
+.activity-bar .MuiIconButton-root:hover,
+.activity-bar .MuiIconButton-root.active {
+	color: #eaf6ff;
+}
+
+.activity-bar .MuiIconButton-root.active {
+	border-left-color: #38bdf8;
+}
+
+.las-viewer[data-theme='light'] .activity-bar .MuiIconButton-root {
+	color: #526b80;
+}
+
+.las-viewer[data-theme='light'] .activity-bar .MuiIconButton-root:hover,
+.las-viewer[data-theme='light'] .activity-bar .MuiIconButton-root.active {
+	color: #0369a1;
+}
+
+.las-viewer[data-theme='light'] .activity-bar .MuiIconButton-root.active {
+	border-left-color: #0284c7;
 }
 
 .tool-bar {
@@ -82,8 +131,8 @@
 	top: 20px;
 	left: 20px;
 	z-index: 10;
-	background: linear-gradient(145deg, rgba(16, 36, 58, 0.92), rgba(8, 23, 38, 0.88));
-	border: 1px solid rgba(125, 211, 252, 0.18);
+	background: #2b2b2b;
+	border: 1px solid #4a4a4a;
 	border-radius: 10px;
 	padding: 6px;
 	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.32);
@@ -92,14 +141,14 @@
 
 .las-viewer[data-theme='light'] .view-color-box,
 .las-viewer[data-theme='light'] .zoom-box {
-	background: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(232, 243, 249, 0.94));
-	border-color: rgba(2, 105, 161, 0.18);
+	background: #d6d6d6;
+	border-color: #a6a6a6;
 	box-shadow: 0 12px 32px rgba(51, 91, 115, 0.18);
 }
 
 .las-viewer[data-theme='light'] .zoom-in,
 .las-viewer[data-theme='light'] .zoom-out {
-	color: #0369a1;
+	color: #3d3d3d;
 }
 
 .zoom-box {
@@ -122,7 +171,7 @@
 .zoom-in {
 	margin-bottom: 15px;
 	font-weight: bold;
-	color: #b9d8eb;
+	color: #d0d0d0;
 	cursor: pointer;
 	font-size: 20px;
 	user-select: none;
@@ -131,7 +180,7 @@
 .zoom-out {
 	margin-top: 15px;
 	font-weight: bold;
-	color: #b9d8eb;
+	color: #d0d0d0;
 	cursor: pointer;
 	font-size: 24px;
 	user-select: none;

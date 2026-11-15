@@ -3,6 +3,8 @@ import { SignInButton, useAuth, useUser, useClerk } from '@clerk/electron/react'
 import LasViewer from './lasReader.jsx';
 import useStore from '../useStore';
 import Button from '@mui/material/Button';
+import Box from '@mui/material/Box';
+import Paper from '@mui/material/Paper';
 import '../css/OAuth.css';
 
 const API_URL = 'http://127.0.0.1:8000';
@@ -14,8 +16,6 @@ export default function OAuth() {
     const { signOut } = useClerk();
     const [name, setName] = useState(null);
     const [provisionError, setProvisionError] = useState(null);
-    const min = useStore(state => state.min);
-    const max = useStore(state => state.max);
 
     useEffect(() => {
         const displayName = user?.fullName
@@ -38,7 +38,7 @@ export default function OAuth() {
 
         let isCurrent = true;
         setProvisionError(null);
-        window.electronAPI?.setDatabaseMenuEnabled?.(false);
+        window.electronAPI?.setDatabaseMenuEnabled?.(true);
 
         const registerUser = async () => {
             try {
@@ -64,9 +64,6 @@ export default function OAuth() {
                     throw new Error(detail?.detail ?? `Could not register the user (${response.status}).`);
                 }
 
-                if (isCurrent) {
-                    window.electronAPI?.setDatabaseMenuEnabled?.(true);
-                }
             } catch (error) {
                 if (isCurrent) {
                     setProvisionError(error instanceof Error ? error.message : String(error));
@@ -127,18 +124,12 @@ export default function OAuth() {
         );
     }
 
-    const toCssRgb = (color) => color
-        ? color.map(value => Math.round(Math.max(0, Math.min(1, value)) * 255)).join(', ')
-        : '255, 255, 255';
-
     return (
-        <main
+        <Box
+            component="main"
             className="oauth-page"
-            style={{
-                '--oauth-min-color': toCssRgb(min),
-                '--oauth-max-color': toCssRgb(max),
-            }}>
-            <section className="oauth-card">
+            sx={{ bgcolor: 'background.default', color: 'text.primary' }}>
+            <Paper component="section" className="oauth-card" variant="outlined">
                 <h1>Photon Flight</h1>
                 <div className="oauth-actions">
                     <SignInButton mode="modal">
@@ -148,7 +139,7 @@ export default function OAuth() {
                         Offline Mode
                     </Button>
                 </div>
-            </section>
-        </main>
+            </Paper>
+        </Box>
     )
 }

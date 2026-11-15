@@ -29,6 +29,7 @@ router = make_router(
     LidarInput,
     None,  # Use map ownership rather than a direct ownership column.
     response_columns=LIDAR_RESPONSE_COLUMNS,
+    filter_by_map=True,
 )
 
 

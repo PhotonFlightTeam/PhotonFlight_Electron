@@ -11,10 +11,7 @@ vi.mock('@react-three/drei', () => ({
   Grid: () => <div data-testid="grid" />,
   GizmoHelper: ({ children }) => <div>{children}</div>,
   GizmoViewport: () => <div data-testid="gizmo" />,
-// vi.mock('@react-three/drei', () => ({
-//   GizmoHelper: ({ children }) => <div>{children}</div>,
-//   GizmoViewport: () => <div data-testid="gizmo" />,
-// }));
+}));
 
 vi.mock('@clerk/electron/react', () => ({
   useAuth: () => ({ getToken: vi.fn() }),
@@ -36,6 +33,26 @@ vi.mock('../Pin', () => ({
 
 vi.mock('../ViewControls', () => ({
   default: () => <div data-testid="view-controls" />,
+}));
+
+vi.mock('../PluginLibrary', () => ({
+  usePlugins: () => ({
+    plugins: [],
+    error: null,
+    importPlugin: vi.fn(),
+    removePlugin: vi.fn(),
+    setPluginEnabled: vi.fn(),
+  }),
+  PluginSidebar: () => null,
+  PluginDetails: () => null,
+}));
+
+vi.mock('../DatabaseBrowser', () => ({
+  default: () => null,
+}));
+
+vi.mock('../lasExport', () => ({
+  exportPointCloud: vi.fn(),
 }));
 
 describe('LasViewer', () => {
@@ -61,6 +78,8 @@ describe('LasViewer', () => {
       onOpenPluginLibrary: vi.fn(() => unsubscribePluginLibrary),
       readFile: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
       saveFile: vi.fn().mockResolvedValue(undefined),
+      listPlugins: vi.fn().mockResolvedValue([]),
+      onPluginsChanged: vi.fn(() => vi.fn()),
     };
     useStore.setState({ colors: new Float32Array([1, 0, 0]), positions: new Float32Array([0, 0, 0]) });
   });
@@ -88,7 +107,7 @@ describe('LasViewer', () => {
   it('switches active tools and clears cached colors on view changes', () => {
     render(<LasViewer fileUrl="initial.laz" />);
 
-    fireEvent.click(screen.getAllByRole('button')[1]);
+    fireEvent.click(screen.getByRole('button', { name: 'Measure' }));
     expect(screen.getAllByTestId('measure-tool').some(
       (tool) => tool.getAttribute('data-tool') === 'Measure',
     )).toBe(true);

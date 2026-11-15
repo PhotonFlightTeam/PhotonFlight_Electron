@@ -33,6 +33,39 @@ describe('PointCloudViewer', () => {
     expect(useStore.getState().positions).toBe(positions);
   });
 
+  it('applies the height color map when height mode is selected', async () => {
+    vi.mocked(load).mockResolvedValue({
+      attributes: { POSITION: { value: new Float32Array([0, 0, 10, 1, 0, 20]) } },
+    });
+
+    const { container } = render(
+      <PointCloudViewer fileUrl="cloud.laz" active="height" pointsRef={{ current: null }} />,
+    );
+
+    await waitFor(() => {
+      expect(useStore.getState().colors).toEqual(new Float32Array([0, 1, 0, 1, 0, 0]));
+    });
+    expect(container.querySelector('pointsmaterial')).toHaveAttribute('color', '#ffffff');
+  });
+
+  it('applies the slope color map when slope mode is selected', async () => {
+    vi.mocked(load).mockResolvedValue({
+      attributes: { POSITION: { value: new Float32Array([0, 0, 0, 0.1, 0, 1]) } },
+    });
+
+    render(
+      <PointCloudViewer fileUrl="cloud.laz" active="slope" pointsRef={{ current: null }} />,
+    );
+
+    const mappedSlope = new Float32Array([10 / 12])[0];
+    await waitFor(() => {
+      expect(useStore.getState().colors).toEqual(new Float32Array([
+        mappedSlope, 1 - mappedSlope, 0,
+        mappedSlope, 1 - mappedSlope, 0,
+      ]));
+    });
+  });
+
   it('renders nothing when no file is selected', () => {
     const { container } = render(
       <PointCloudViewer fileUrl={null} active="base" pointsRef={{ current: null }} />,

@@ -15,7 +15,15 @@ from .auth import get_current_user_id
 from .database import get_connection
 
 
-def make_router(path, table, key, model, owner=None, response_columns=None):
+def make_router(
+    path,
+    table,
+    key,
+    model,
+    owner=None,
+    response_columns=None,
+    filter_by_map=False,
+):
     router = APIRouter(
         prefix="/api/" + path,
         tags=[path.title()],
@@ -92,22 +100,29 @@ def make_router(path, table, key, model, owner=None, response_columns=None):
     def list_records(
         limit: int = Query(50, ge=1, le=100),
         offset: int = Query(0, ge=0),
+        map_id: int | None = Query(None, gt=0),
         user: int = Depends(get_current_user_id),
         connection: Connection = Depends(get_connection),
     ):
+        where = guard
+        params = [user]
+        if filter_by_map and map_id is not None:
+            where = sql.SQL("{} AND map_id = %s").format(guard)
+            params.append(map_id)
+
         query = sql.SQL(
-            "SELECT {projection} FROM {table} WHERE {guard} "
+            "SELECT {projection} FROM {table} WHERE {where} "
             "ORDER BY {key} LIMIT %s OFFSET %s"
         ).format(
             table=table_sql,
-            guard=guard,
+            where=where,
             key=key_sql,
             projection=projection,
         )
 
         return connection.execute(
             query,
-            (user, limit, offset),
+            (*params, limit, offset),
         ).fetchall()
 
     @router.get("/{record_id}")

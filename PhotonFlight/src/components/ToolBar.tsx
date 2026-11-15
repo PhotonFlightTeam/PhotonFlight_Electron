@@ -10,16 +10,19 @@ export default function ToolBar({ activeTool, setActiveTool }: { activeTool: str
     return (
         <Box sx={{ '& > :not(style)': { m: 1 } }}>
             <Fab 
+            aria-label="Select"
             color={activeTool === 'Select' ? 'primary' : 'default'}            
             onClick={() => setActiveTool('Select')}>
                 <NearMeIcon />
             </Fab>
             <Fab 
+            aria-label="Measure"
             color={activeTool === 'Measure' ? 'secondary' : 'default'}
             onClick={() => setActiveTool('Measure')}>
                 <SquareFootIcon />
             </Fab>
             <Fab  
+            aria-label="Pin"
             color={activeTool === 'Pin' ? 'error' : 'default'}
             onClick={() => setActiveTool('Pin')}>
                 <PushPinIcon />

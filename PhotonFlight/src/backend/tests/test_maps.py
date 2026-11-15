@@ -11,9 +11,9 @@ import psycopg
 import pytest
 from fastapi.testclient import TestClient
 
-from git.PhotonFlight.src.backend.app.auth import get_current_user_id
-from git.PhotonFlight.src.backend.app.database import get_connection
-from git.PhotonFlight.src.backend.app.main import app
+from src.backend.app.auth import get_current_user_id
+from src.backend.app.database import get_connection
+from src.backend.app.main import app
 
 USER_ID = 3
 HEADERS = {"Authorization": "Bearer test-only-secret"}
