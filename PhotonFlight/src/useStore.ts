@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import * as THREE from 'three';
 
 interface State {
   colors: Float32Array | null;
@@ -10,6 +11,7 @@ interface State {
   id: string | null;
   min: [number, number, number] | null;
   max: [number, number, number] | null;
+  bounds: THREE.Box3 | null;
   setAllPointCloudColors: (rgb: [number, number, number]) => void;
   setPositions: (postions: Float32Array) => void
 }
@@ -26,6 +28,7 @@ const useStore = create<State>()((set, get) => ({
   user: null,
   min: [0, 1, 0],
   max: [1, 0, 0],
+  bounds: null,
 
   setAllPointCloudColors: ([red, green, blue]) => {
     const currentColors = get().positions;

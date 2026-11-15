@@ -114,6 +114,7 @@ export default function PointCloudViewer({ fileUrl, active, pointsRef }) {
       geo.computeBoundingSphere();
       geo.center();
       geo.computeBoundingBox();
+      useStore.setState({ bounds: geo.boundingBox });
       
       setGeo(geo)
     } else {

@@ -10,6 +10,7 @@ import { spawn } from 'node:child_process'
 import { setupApplicationMenu } from './applicationMenu';
 
 let themeMode = 'dark';
+let controlMode = 'position';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -135,16 +136,23 @@ app.whenReady().then(() => {
   ipcMain.handle('theme:set-mode', (_event, mode) => {
     if (mode !== 'dark' && mode !== 'light') return themeMode;
     themeMode = mode;
-    setupApplicationMenu(themeMode, databaseMenuEnabled);
+    setupApplicationMenu(themeMode, databaseMenuEnabled, controlMode);
     return themeMode;
   });
   ipcMain.on('theme-mode-changed', (_event, mode) => {
     if (mode !== 'dark' && mode !== 'light') return;
     themeMode = mode;
-    setupApplicationMenu(themeMode, databaseMenuEnabled);
+    setupApplicationMenu(themeMode, databaseMenuEnabled, controlMode);
   });
 
-  setupApplicationMenu(themeMode, databaseMenuEnabled);
+  ipcMain.handle('controls:set-mode', (_event, mode) => {
+    if (mode !== 'flight' && mode !== 'position') return controlMode;
+    controlMode = mode;
+    setupApplicationMenu(themeMode, databaseMenuEnabled, controlMode);
+    return controlMode;
+  });
+
+  setupApplicationMenu(themeMode, databaseMenuEnabled, controlMode);
 
   createWindow();
   startPythonBackend(); // Start the Python backend when the app is ready

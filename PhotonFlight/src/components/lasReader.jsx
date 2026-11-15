@@ -144,7 +144,7 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
           <PointCloudViewer pointsRef={pointsRef} fileUrl={fileSource} active={active} />
           <MeasureTool pointsRef={pointsRef} activeTool={activeTool} fileUrl={fileSource} />
           <PinTool pointsRef={pointsRef} activeTool={activeTool} fileUrl={fileSource} />
-          <ViewControls zoomRequest={zoomRequest} setZoom={setZoom} />
+          <ViewControls zoomRequest={zoomRequest} setZoom={setZoom} fileUrl={fileSource} />
         </Canvas>
 
         <div className="tool-bar">

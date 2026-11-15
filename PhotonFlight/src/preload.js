@@ -34,6 +34,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   getThemeMode: () => ipcRenderer.invoke('theme:get-mode'),
   setThemeMode: (mode) => ipcRenderer.invoke('theme:set-mode', mode),
+  onControlModeChanged: (callback) => {
+    const handler = (_event, mode) => callback(mode);
+    ipcRenderer.on('control-mode-changed', handler);
+    return () => ipcRenderer.removeListener('control-mode-changed', handler);
+  },
+  setControlMode: (mode) => ipcRenderer.invoke('controls:set-mode', mode),
   setDatabaseMenuEnabled: (enabled) => ipcRenderer.send('database-menu-enabled', enabled),
   onOpenDatabaseBrowser: (callback) => {
     const handler = () => callback();
