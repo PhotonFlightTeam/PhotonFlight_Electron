@@ -182,13 +182,11 @@ app.whenReady().then(() => {
   });
 
 
-  let databaseMenuEnabled = false;
   ipcMain.on('database-menu-enabled', (_event, enabled) => {
     if (typeof enabled !== 'boolean') return;
 
     databaseMenuEnabled = enabled;
-    const item = Menu.getApplicationMenu()?.getMenuItemById('database');
-    if (item) item.enabled = enabled;
+    refreshApplicationMenu();
   });
 
   registerPluginHandlers();
@@ -197,16 +195,16 @@ app.whenReady().then(() => {
   ipcMain.handle('theme:set-mode', (_event, mode) => {
     if (mode !== 'dark' && mode !== 'light') return themeMode;
     themeMode = mode;
-    setupApplicationMenu(themeMode, databaseMenuEnabled);
+    refreshApplicationMenu();
     return themeMode;
   });
   ipcMain.on('theme-mode-changed', (_event, mode) => {
     if (mode !== 'dark' && mode !== 'light') return;
     themeMode = mode;
-    setupApplicationMenu(themeMode, databaseMenuEnabled);
+    refreshApplicationMenu();
   });
 
-  setupApplicationMenu(themeMode, databaseMenuEnabled);
+  refreshApplicationMenu();
 
   createWindow();
   startPythonBackend(); // Start the Python backend when the app is ready

@@ -71,8 +71,8 @@ export function setupApplicationMenu(
           label: 'Maps',
           id: 'database',
           enabled: databaseMenuEnabled,
-          click: (_menuItem, browserWindow) => {
-            browserWindow?.webContents.send('open-database-browser');
+          click: (_menuItem: MenuItem, baseWindow?: BaseWindow) => {
+            getWindow(baseWindow)?.webContents.send('open-database-browser');
           }
         },
         { type: 'separator' },
