@@ -41,13 +41,13 @@ const startPythonBackend = () => {
       'src', 
       'backend');
     const executableDirectory = process.platform === 'win32' ? 'Scripts' : 'bin';
-    const executableName = process.platform === 'win32' ? 'uvicorn.exe' : 'uvicorn';
+    const executableName = process.platform === 'win32' ? 'python.exe' : 'python';
     const virtualEnvironment = ['venv', '.venv']
       .map((directory) => path.join(backendDirectory, directory))
       .find((directory) => existsSync(path.join(directory, executableDirectory, executableName)))
       ?? path.join(backendDirectory, 'venv');
     backendPath = path.join(virtualEnvironment, executableDirectory, executableName);
-    args = ['app.main:app', '--host', '127.0.0.1', '--port', '8000'];
+    args = ['-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', '8000'];
   } else {
 
     const backendExecutable = process.platform === 'win32' ? 'main.exe' : 'main';

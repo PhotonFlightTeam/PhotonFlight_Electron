@@ -21,7 +21,6 @@ export default function PointCloudViewer({ fileUrl, active, pointsRef }) {
   const [rgbMinMax, setRgbMinMax] = useState({ min: useStore.getState().min, max: useStore.getState().max });
   const setAllPointCloudColors = useStore((state) => state.setAllPointCloudColors)
   const setPositions = useStore((state) => state.setPositions)
-  const colors = useStore((state) => state.colors)
   // Parses the LiDAR data
   useEffect(() => {
     let cancelled = false;
@@ -158,7 +157,7 @@ export default function PointCloudViewer({ fileUrl, active, pointsRef }) {
         <pointsMaterial
           color={geo.attributes?.color ? '#ffffff' : mode === 'light' ? '#102a43' : '#eaf6ff'}
           size={0.05} // Adjust thickness based on data density
-          vertexColors={!!geo.attributes?.color || !!colors} // Use laser-captured color metrics if available
+          vertexColors
           sizeAttenuation={true} // Near points appear larger than distant points
         />
       </points>
