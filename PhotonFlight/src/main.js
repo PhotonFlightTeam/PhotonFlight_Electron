@@ -9,9 +9,23 @@ import { storage } from '@clerk/electron/storage';
 import { CoreSupervisor, coreLaunchOptions } from './coreSupervisor';
 import { spawn } from 'node:child_process';
 import { setupApplicationMenu } from './applicationMenu';
+import { coreProtoRoot } from './grpc/client';
+import { CoreConnection } from './grpc/coreConnection';
 
 const coreSupervisor = new CoreSupervisor({
   launch: coreLaunchOptions({ appPath: app.getAppPath(), resourcesPath: process.resourcesPath, isPackaged: app.isPackaged }),
+});
+
+const coreConnection = new CoreConnection({
+  supervisor: coreSupervisor,
+  protoRoot: coreProtoRoot({ appPath: app.getAppPath(), resourcesPath: process.resourcesPath, isPackaged: app.isPackaged }),
+});
+coreConnection.on('status', (status) => {
+  if (status.state === 'ready') {
+    console.info(`[PhotonCore gRPC] Ready at ${status.host}:${status.port}; API ${status.apiVersion}; instance ${status.coreInstanceId}`);
+  } else if (status.state === 'failed') {
+    console.error(`[PhotonCore gRPC] ${status.error}`);
+  }
 });
 
 coreSupervisor.on('status', (status) => {
@@ -48,6 +62,7 @@ app.on('before-quit', (event) => {
   event.preventDefault();
   if (quitInProgress) return;
   quitInProgress = true;
+  coreConnection.dispose();
   coreSupervisor.dispose().then(() => {
     clerk.cleanup();
     quitAfterCoreStops = true;
@@ -152,7 +167,7 @@ app.whenReady().then(() => {
   };
   ipcMain.handle('core:get-status', (event) => {
     assertCoreSender(event);
-    return coreSupervisor.getStatus();
+    return coreConnection.getProcessStatus();
   });
   for (const action of ['start', 'stop', 'restart']) {
     ipcMain.handle(`core:${action}`, (event) => {

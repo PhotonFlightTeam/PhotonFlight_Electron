@@ -1,71 +1,11 @@
-export enum CoreState {
-  CORE_STATE_UNSPECIFIED = 0,
-  CORE_STATE_STARTING = 1,
-  CORE_STATE_READY = 2,
-  CORE_STATE_LOADING_DATASET = 3,
-  CORE_STATE_SHUTTING_DOWN = 4,
-  CORE_STATE_ERROR = 5,
-}
-
-export enum OperationState {
-  OPERATION_STATE_UNSPECIFIED = 0,
-  OPERATION_STATE_QUEUED = 1,
-  OPERATION_STATE_RUNNING = 2,
-  OPERATION_STATE_SUCCEEDED = 3,
-  OPERATION_STATE_FAILED = 4,
-  OPERATION_STATE_CANCELLED = 5,
-}
-
-export interface Coordinate3d {
-  x: number;
-  y: number;
-  z: number;
-}
-
-export interface Bounds3d {
-  minimum: Coordinate3d;
-  maximum: Coordinate3d;
-}
-
-export interface PointAttributes {
-  has_rgb: boolean;
-  has_intensity: boolean;
-  has_classification: boolean;
-}
-
-export interface Dataset {
-  id: string;
-  revision: number | string;
-  display_name: string;
-  point_count: number | string;
-  origin: Coordinate3d;
-  bounds: Bounds3d;
-  attributes: PointAttributes;
-}
-
-export interface Operation {
-  id: string;
-  state: OperationState;
-  progress: number;
-  message: string;
-  error?: OperationError;
-}
-
-export interface OperationError {
-  code: string;
-  message: string;
-}
-
-export interface Annotation {
-  id: string;
-  dataset_id: string;
-  position: Coordinate3d;
-  text: string;
-}
-
-export interface Plugin {
-  id: string;
-  name: string;
-  version: string;
-  enabled: boolean;
-}
+// Compatibility exports. Wire types are generated from application-proto.
+export { CoreState } from '../../generated/photonflight/application/v1/CoreState';
+export { OperationState } from '../../generated/photonflight/application/v1/OperationState';
+export type { Coordinate3d__Output as Coordinate3d } from '../../generated/photonflight/application/v1/Coordinate3d';
+export type { Bounds3d__Output as Bounds3d } from '../../generated/photonflight/application/v1/Bounds3d';
+export type { PointAttributes__Output as PointAttributes } from '../../generated/photonflight/application/v1/PointAttributes';
+export type { Dataset__Output as Dataset } from '../../generated/photonflight/application/v1/Dataset';
+export type { Operation__Output as Operation } from '../../generated/photonflight/application/v1/Operation';
+export type { OperationError__Output as OperationError } from '../../generated/photonflight/application/v1/OperationError';
+export type { Annotation__Output as Annotation } from '../../generated/photonflight/application/v1/Annotation';
+export type { Plugin__Output as Plugin } from '../../generated/photonflight/application/v1/Plugin';

@@ -107,3 +107,6 @@ __pycache__/
 
 # JetBrains IDE Cache
 .idea/
+
+# Generated gRPC files
+/PhotonFlight/src/grpc/generated/

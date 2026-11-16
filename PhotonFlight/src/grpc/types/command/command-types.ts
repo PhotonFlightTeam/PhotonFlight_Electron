@@ -1,80 +1,12 @@
-export interface Command {
-  request_id: string;
-  payload: AddAnnotationPayload | RemoveAnnotationPayload | SetPluginEnabledPayload;
-}
-
-export interface AddAnnotationPayload {
-  kind: "add_annotation";
-  add_annotation: AddAnnotationCommand;
-}
-
-export interface RemoveAnnotationPayload {
-  kind: "remove_annotation";
-  remove_annotation: RemoveAnnotationCommand;
-}
-
-export interface SetPluginEnabledPayload {
-  kind: "set_plugin_enabled";
-  set_plugin_enabled: SetPluginEnabledCommand;
-}
-
-export interface CommandResult {
-  request_id: string;
-  resulting_revision: number | string;
-  payload: AddAnnotationResultPayload | RemoveAnnotationResultPayload | SetPluginEnabledResultPayload;
-}
-
-export interface AddAnnotationResultPayload {
-  kind: "add_annotation";
-  add_annotation: AddAnnotationResult;
-}
-
-export interface RemoveAnnotationResultPayload {
-  kind: "remove_annotation";
-  remove_annotation: RemoveAnnotationResult;
-}
-
-export interface SetPluginEnabledResultPayload {
-  kind: "set_plugin_enabled";
-  set_plugin_enabled: SetPluginEnabledResult;
-}
-
-export interface AddAnnotationCommand {
-  dataset_id: string;
-  expected_revision: number | string;
-  position: Coordinate3d;
-  text: string;
-}
-
-export interface AddAnnotationResult {
-  annotation: Annotation;
-}
-
-export interface RemoveAnnotationCommand {
-  dataset_id: string;
-  expected_revision: number | string;
-  annotation_id: string;
-}
-
-export interface RemoveAnnotationResult {
-  annotation_id: string;
-}
-
-export interface SetPluginEnabledCommand {
-  plugin_id: string;
-  enabled: boolean;
-}
-
-export interface SetPluginEnabledResult {
-  plugin: Plugin;
-  restart_required: boolean;
-}
-
-export interface Coordinate3d {
-  x: number;
-  y: number;
-  z: number;
-}
-
-export interface Annotation {}
-export interface Plugin {}
+// Compatibility exports. Wire types are generated from application-proto.
+export type { Command } from '../../generated/photonflight/application/v1/Command';
+export type { AddAnnotationCommand } from '../../generated/photonflight/application/v1/AddAnnotationCommand';
+export type { RemoveAnnotationCommand } from '../../generated/photonflight/application/v1/RemoveAnnotationCommand';
+export type { SetPluginEnabledCommand } from '../../generated/photonflight/application/v1/SetPluginEnabledCommand';
+export type { CommandResult__Output as CommandResult } from '../../generated/photonflight/application/v1/CommandResult';
+export type { AddAnnotationResult__Output as AddAnnotationResult } from '../../generated/photonflight/application/v1/AddAnnotationResult';
+export type { RemoveAnnotationResult__Output as RemoveAnnotationResult } from '../../generated/photonflight/application/v1/RemoveAnnotationResult';
+export type { SetPluginEnabledResult__Output as SetPluginEnabledResult } from '../../generated/photonflight/application/v1/SetPluginEnabledResult';
+export type { Coordinate3d__Output as Coordinate3d } from '../../generated/photonflight/application/v1/Coordinate3d';
+export type { Annotation__Output as Annotation } from '../../generated/photonflight/application/v1/Annotation';
+export type { Plugin__Output as Plugin } from '../../generated/photonflight/application/v1/Plugin';

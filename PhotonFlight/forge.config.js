@@ -1,10 +1,11 @@
 const { FusesPlugin } = require('@electron-forge/plugin-fuses');
 const { FuseV1Options, FuseVersion } = require('@electron/fuses');
+const path = require('node:path');
 
 module.exports = {
   packagerConfig: {
     asar: true,
-    extraResource: ['src/backend/dist/run'],
+    extraResource: ['src/backend/dist/run', path.join(__dirname, 'proto/application')],
   },
   rebuildConfig: {},
   makers: [

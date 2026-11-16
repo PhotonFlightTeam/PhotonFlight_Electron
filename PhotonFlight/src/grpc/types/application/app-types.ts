@@ -1,91 +1,24 @@
-export enum CoreState {
-  CORE_STATE_UNSPECIFIED = 0,
-  IDLE = 1,
-  LOADING = 2,
-  READY = 3,
-  SHUTTING_DOWN = 4,
-}
-
-export interface CoreControlService {
-  GetStatus(request: GetStatusRequest): Promise<CoreStatus>;
-  LoadDataset(request: LoadDatasetRequest): Promise<LoadDatasetResponse>;
-  UnloadDataset(request: UnloadDatasetRequest): Promise<UnloadDatasetResponse>;
-  ExecuteCommand(command: Command): Promise<CommandResult>;
-  SubscribeEvents(request: SubscribeEventsRequest): AsyncIterable<Event>;
-  Shutdown(request: ShutdownRequest): Promise<ShutdownResponse>;
-}
-
-export interface PointCloudService {
-  GetDataset(request: GetDatasetRequest): Promise<Dataset>;
-  StreamPoints(request: StreamPointsRequest): AsyncIterable<PointBatch>;
-}
-
-export interface GetStatusRequest {}
-
-export interface CoreStatus {
-  core_instance_id: string;
-  api_version: string;
-  core_version: string;
-  state: CoreState;
-  uptime_ms: number | string;
-  active_dataset?: Dataset;
-}
-
-export interface LoadDatasetRequest {
-  path: string;
-}
-
-export interface LoadDatasetResponse {
-  operation?: Operation;
-}
-
-export interface UnloadDatasetRequest {
-  dataset_id: string;
-}
-
-export interface UnloadDatasetResponse {
-  operation?: Operation;
-}
-
-export interface SubscribeEventsRequest {
-  include_snapshot: boolean;
-}
-
-export interface ShutdownRequest {
-  grace_period_ms: number;
-}
-
-export interface ShutdownResponse {
-  accepted: boolean;
-}
-
-export interface GetDatasetRequest {
-  dataset_id: string;
-}
-
-export interface StreamPointsRequest {
-  dataset_id: string;
-  revision: number | string;
-  preferred_batch_points: number;
-}
-
-export interface PointBatch {
-  dataset_id: string;
-  revision: number | string;
-  point_offset: number | string;
-  point_count: number;
-  positions_f32_le: Uint8Array;
-  colors_rgb_u8: Uint8Array;
-  intensities_u16_le: Uint8Array;
-  classifications_u8: Uint8Array;
-}
-
-export interface Dataset {}
-export interface Operation {}
-export interface Command {}
-export interface CommandResult {}
-export interface Event {}
-
-
-
-
+// Compatibility exports. Wire types are generated from application-proto.
+export { CoreState } from '../../generated/photonflight/application/v1/CoreState';
+export type { CoreControlServiceClient as CoreControlService } from '../../generated/photonflight/application/v1/CoreControlService';
+export type { PointCloudServiceClient as PointCloudService } from '../../generated/photonflight/application/v1/PointCloudService';
+export type { GetStatusRequest } from '../../generated/photonflight/application/v1/GetStatusRequest';
+export type { GetOperationRequest } from '../../generated/photonflight/application/v1/GetOperationRequest';
+export type { LoadDatasetRequest } from '../../generated/photonflight/application/v1/LoadDatasetRequest';
+export type { UnloadDatasetRequest } from '../../generated/photonflight/application/v1/UnloadDatasetRequest';
+export type { SubscribeEventsRequest } from '../../generated/photonflight/application/v1/SubscribeEventsRequest';
+export type { ShutdownRequest } from '../../generated/photonflight/application/v1/ShutdownRequest';
+export type { GetDatasetRequest } from '../../generated/photonflight/application/v1/GetDatasetRequest';
+export type { GetAnnotationsRequest } from '../../generated/photonflight/application/v1/GetAnnotationsRequest';
+export type { StreamPointsRequest } from '../../generated/photonflight/application/v1/StreamPointsRequest';
+export type { Command } from '../../generated/photonflight/application/v1/Command';
+export type { CoreStatus__Output as CoreStatus } from '../../generated/photonflight/application/v1/CoreStatus';
+export type { LoadDatasetResponse__Output as LoadDatasetResponse } from '../../generated/photonflight/application/v1/LoadDatasetResponse';
+export type { UnloadDatasetResponse__Output as UnloadDatasetResponse } from '../../generated/photonflight/application/v1/UnloadDatasetResponse';
+export type { ShutdownResponse__Output as ShutdownResponse } from '../../generated/photonflight/application/v1/ShutdownResponse';
+export type { GetAnnotationsResponse__Output as GetAnnotationsResponse } from '../../generated/photonflight/application/v1/GetAnnotationsResponse';
+export type { PointBatch__Output as PointBatch } from '../../generated/photonflight/application/v1/PointBatch';
+export type { Dataset__Output as Dataset } from '../../generated/photonflight/application/v1/Dataset';
+export type { Operation__Output as Operation } from '../../generated/photonflight/application/v1/Operation';
+export type { CommandResult__Output as CommandResult } from '../../generated/photonflight/application/v1/CommandResult';
+export type { Event__Output as Event } from '../../generated/photonflight/application/v1/Event';
