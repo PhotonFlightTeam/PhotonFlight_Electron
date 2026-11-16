@@ -20,6 +20,7 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
   // Slider Min/Max
   const maxZoom = 200; // Slider top value
   const minZoom = 10;  // Slider bottom value
+  const [speed, setSpeed] = useState(maxDist / 25);
 
   useEffect(() => {
     const electronAPI = window.electronAPI;
@@ -28,11 +29,16 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
     return electronAPI.onControlModeChanged((controlMode) => {
       if (controlMode !== 'flight' && controlMode !== 'position') return;
 
+      if (controlMode === 'flight') {
+        setSpeed(maxDist / 25);
+        setZoom(40);
+      }
+
       console.log('Control mode changed:', controlMode);
       setControls(controlMode);
       void electronAPI.setControlMode(controlMode);
     });
-  }, []);
+  }, [maxDist, setZoom]);
 
   useEffect(() => {
     boundsAtFileChange.current = bounds;
@@ -60,6 +66,7 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
   // Helper math to map physical distance to a 10-200 slider value
   const distToZoom = (dist) => maxZoom - (((Math.max(minDist, Math.min(dist, maxDist)) - minDist) / (maxDist - minDist)) * (maxZoom - minZoom));
   const zoomToDist = (z) => minDist + (((maxZoom - Math.max(minZoom, Math.min(z, maxZoom))) / (maxZoom - minZoom)) * (maxDist - minDist));
+  const zoomToSpeed = (z) => (maxDist / 5) + (((maxZoom - Math.max(minZoom, Math.min(z, maxZoom))) / (maxZoom - minZoom)) * ((maxDist / 100) - (maxDist / 5)));
 
   // Sync Slider to Mouse Wheel (OrbitControls internal change)
   useEffect(() => {
@@ -79,25 +86,29 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
   
   // Apply camera changes only for explicit slider/button zoom requests.
   useEffect(() => {
-    const controls = controlsRef.current;
-    if (!controls) return;
+    if (controls === 'position') {
+      if (!controlsRef.current) return;
+      const currentDist = camera.position.distanceTo(controlsRef.current.target);
+      const targetDist = zoomToDist(zoomRequest.value);
+      
+      // Only move the camera if the slider value differs significantly from current view
+      if (Math.abs(currentDist - targetDist) > 0.5) {
+        const direction = new THREE.Vector3().subVectors(camera.position, controlsRef.current.target).normalize();
+        if (direction.lengthSq() === 0) direction.set(0, 0, 1);
 
-    const currentDist = camera.position.distanceTo(controls.target);
-    const targetDist = zoomToDist(zoomRequest.value);
-    
-    // Only move the camera if the slider value differs significantly from current view
-    if (Math.abs(currentDist - targetDist) > 0.5) {
-      const direction = new THREE.Vector3().subVectors(camera.position, controls.target).normalize();
-      if (direction.lengthSq() === 0) direction.set(0, 0, 1);
+        isUpdatingFromSlider.current = true;
 
-      isUpdatingFromSlider.current = true;
+        camera.position.copy(controlsRef.current.target).add(direction.multiplyScalar(targetDist));
+        controlsRef.current.update();
 
-      camera.position.copy(controls.target).add(direction.multiplyScalar(targetDist));
-      controls.update();
+        isUpdatingFromSlider.current = false;
+      }
+    } else {
+      const targetSpeed = zoomToSpeed(zoomRequest.value);
 
-      isUpdatingFromSlider.current = false;
+      setSpeed(targetSpeed);
     }
-  }, [zoomRequest, camera]);
+  }, [zoomRequest, camera, setSpeed]);
   
 
   useEffect(() => {
@@ -105,6 +116,7 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
     if (!canvas) return;
     canvas.tabIndex = 0;
     const focus = () => canvas.focus();
+    const capturePointer = (event) => canvas.setPointerCapture(event.pointerId);
 
     // Function to apply a specific view based on position and direction
     const applyView = (pos, dir) => {
@@ -170,11 +182,15 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
     canvas.addEventListener('click', focus);
     canvas.addEventListener('keydown', handleKeyDown);
     canvas.addEventListener('keyup', handleKeyUp);
+    if (controls === 'flight') {
+      canvas.addEventListener('pointerdown', capturePointer);
+    }
 
     return () => {
       canvas.removeEventListener('click', focus);
       canvas.removeEventListener('keydown', handleKeyDown);
       canvas.removeEventListener('keyup', handleKeyUp);
+      canvas.removeEventListener('pointerdown', capturePointer);
     };
   }, [gl, camera, axis, controls, maxDist, minDist, setZoom, boundsDiagonal]);
 
@@ -190,9 +206,9 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
 
   return (
     <FlyControls
-      movementSpeed={maxDist / 25}
+      movementSpeed={speed}
       rollSpeed={0.3}
-      dragToLook
+      dragToLook={true}
       autoForward={false}
     />
   );

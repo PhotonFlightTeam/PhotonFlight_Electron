@@ -33,6 +33,7 @@ describe('ViewControls', () => {
     camera = new THREE.PerspectiveCamera();
     camera.position.set(0, 0, 50);
     canvas = document.createElement('canvas');
+    canvas.setPointerCapture = vi.fn();
     viewMocks.controls = {
       target: new THREE.Vector3(),
       update: vi.fn(),
@@ -164,6 +165,32 @@ describe('ViewControls', () => {
       if (previousElectronAPI === undefined) delete window.electronAPI;
       else window.electronAPI = previousElectronAPI;
       log.mockRestore();
+    }
+  });
+
+  it('captures the pointer only in flight mode', () => {
+    const previousElectronAPI = window.electronAPI;
+    let handleControlModeChange;
+    window.electronAPI = {
+      onControlModeChanged: vi.fn((callback) => {
+        handleControlModeChange = callback;
+        return vi.fn();
+      }),
+      setControlMode: vi.fn(),
+    };
+
+    try {
+      render(<ViewControls zoomRequest={{ value: 180 }} setZoom={vi.fn()} />);
+
+      fireEvent.pointerDown(canvas, { pointerId: 1 });
+      expect(canvas.setPointerCapture).not.toHaveBeenCalled();
+
+      act(() => handleControlModeChange('flight'));
+      fireEvent.pointerDown(canvas, { pointerId: 2 });
+      expect(canvas.setPointerCapture).toHaveBeenCalledWith(2);
+    } finally {
+      if (previousElectronAPI === undefined) delete window.electronAPI;
+      else window.electronAPI = previousElectronAPI;
     }
   });
 });
