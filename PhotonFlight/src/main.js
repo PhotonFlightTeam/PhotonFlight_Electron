@@ -225,7 +225,7 @@ app.whenReady().then(() => {
   startPythonBackend(); // Start the Python backend when the app is ready
   if (!started) coreSupervisor.start().catch((error) => {
     console.error('PhotonCore startup failed:', error);
-    dialog.showErrorBox('PhotonCore startup failed', `${error.message}\n\nBuild Core with gradlew.bat installDist or set PHOTON_CORE_HOME to an installed distribution.`);
+    dialog.showErrorBox('PhotonCore startup failed', `${error.message}\n\nCore launches from the bundled JAR. Check that Java 21 is available and the Core asset was prepared.`);
   });
 
   // On OS X it's common to re-create a window in the app when the

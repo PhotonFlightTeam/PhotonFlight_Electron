@@ -20,18 +20,21 @@ export function probeCorePort() {
 }
 
 export function coreLaunchOptions({ appPath, resourcesPath, isPackaged, env = process.env }) {
-  const coreHome = env.PHOTON_CORE_HOME || (isPackaged
-    ? path.join(resourcesPath, 'PhotonCore')
-    : path.resolve(appPath, '../../PhotonCore/build/install/PhotonCore'));
+  const jar = isPackaged
+    ? path.join(resourcesPath, 'core', 'photoncore.jar')
+    : path.join(appPath, 'resources', 'core', 'photoncore.jar');
   const java = env.PHOTON_CORE_JAVA || (env.JAVA_HOME
     ? path.join(env.JAVA_HOME, 'bin', process.platform === 'win32' ? 'java.exe' : 'java')
     : 'java');
-  const args = ['-cp', path.join(coreHome, 'lib', '*'), 'org.photonflight.core.Application'];
+  const args = ['-jar', jar];
   return {
     command: java,
     args,
-    cwd: coreHome,
-    validate: () => access(path.join(coreHome, 'lib')),
+    cwd: path.dirname(jar),
+    validate: async () => {
+      try { await access(jar); }
+      catch { throw new Error(`Bundled PhotonCore JAR is missing: ${jar}. Run npm run prepare:core or rebuild the application.`); }
+    },
     prepare: async () => {
       const port = await probeCorePort();
       return { args: [...args, `PHOTON_CORE_PORT=${port}`], host: CORE_HOST, port };
