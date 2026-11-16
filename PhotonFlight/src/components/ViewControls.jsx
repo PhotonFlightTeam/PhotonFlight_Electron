@@ -21,6 +21,7 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
   const maxZoom = 200; // Slider top value
   const minZoom = 10;  // Slider bottom value
   const [speed, setSpeed] = useState(maxDist / 25);
+  const [rollSpeed, setRollSpeed] = useState(0.716);
 
   useEffect(() => {
     const electronAPI = window.electronAPI;
@@ -67,6 +68,7 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
   const distToZoom = (dist) => maxZoom - (((Math.max(minDist, Math.min(dist, maxDist)) - minDist) / (maxDist - minDist)) * (maxZoom - minZoom));
   const zoomToDist = (z) => minDist + (((maxZoom - Math.max(minZoom, Math.min(z, maxZoom))) / (maxZoom - minZoom)) * (maxDist - minDist));
   const zoomToSpeed = (z) => (maxDist / 5) + (((maxZoom - Math.max(minZoom, Math.min(z, maxZoom))) / (maxZoom - minZoom)) * ((maxDist / 100) - (maxDist / 5)));
+  const zoomToRollSpeed = (z) => 4 + (((maxZoom - Math.max(minZoom, Math.min(z, maxZoom))) / (maxZoom - minZoom)) * (0.1 - 4));
 
   // Sync Slider to Mouse Wheel (OrbitControls internal change)
   useEffect(() => {
@@ -105,10 +107,12 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
       }
     } else {
       const targetSpeed = zoomToSpeed(zoomRequest.value);
-
+      const targetRollSpeed = zoomToRollSpeed(zoomRequest.value);
       setSpeed(targetSpeed);
+      setRollSpeed(targetRollSpeed);
     }
-  }, [zoomRequest, camera, setSpeed]);
+  }, [zoomRequest, camera, setSpeed, setRollSpeed]);
+
   
 
   useEffect(() => {
@@ -146,7 +150,14 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
 
     // Keydown event handler to manage camera controls and view changes
     const handleKeyDown = (event) => {
-      if (controls === 'flight') return;
+      if (controls === 'flight') {
+        if (event.key === ' ') {
+          camera.position.set(0, 0 , boundsDiagonal.z * 2);
+          camera.up.set(0, 1, 0);
+          camera.lookAt(0, 0, 0);
+        }
+        return;
+      };
       if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
 
       switch (event.key.toLowerCase()) {
@@ -207,7 +218,7 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
   return (
     <FlyControls
       movementSpeed={speed}
-      rollSpeed={0.3}
+      rollSpeed={rollSpeed}
       dragToLook={true}
       autoForward={false}
     />
