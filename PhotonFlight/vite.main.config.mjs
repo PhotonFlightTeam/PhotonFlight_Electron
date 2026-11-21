@@ -5,4 +5,10 @@ export default defineConfig({
   build: {
     sourcemap: true,
   },
+
+  build: {
+    rollupOptions: {
+      external: ['@grpc/grpc-js', '@grpc/proto-loader'],
+    },
+  },
 });

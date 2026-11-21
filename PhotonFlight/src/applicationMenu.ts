@@ -1,16 +1,34 @@
 import { BrowserWindow, Menu, dialog, type BaseWindow, type KeyboardEvent, type MenuItem, type MenuItemConstructorOptions } from 'electron';
 import { importPlugin } from './pluginManager';
-import useStore from "./useStore"
-
-//const setAllPointCloudColors = useStore((state) => state.setAllPointCloudColors)
+interface ApplicationMenuOptions {
+  coreSupervisor?: {
+    start(): Promise<unknown>;
+    stop(): Promise<unknown>;
+    restart(): Promise<unknown>;
+  };
+  databaseMenuEnabled?: boolean;
+}
 
 function getWindow(baseWindow: BaseWindow | undefined): BrowserWindow | null {
   if (baseWindow instanceof BrowserWindow) return baseWindow;
   return BrowserWindow.getFocusedWindow();
 }
 
-export function setupApplicationMenu(themeMode: 'dark' | 'light' = 'dark', databaseMenuEnabled = false,): void {
+export function setupApplicationMenu(
+  themeMode: 'dark' | 'light' = 'dark',
+  { coreSupervisor, databaseMenuEnabled = false }: ApplicationMenuOptions = {},
+): void {
   const template: MenuItemConstructorOptions[] = [
+    {
+      label: 'Database',
+      submenu: [{
+        label: 'Browse...',
+        enabled: databaseMenuEnabled,
+        click: (_menuItem: MenuItem, baseWindow?: BaseWindow) => {
+          getWindow(baseWindow)?.webContents.send('open-database-browser');
+        },
+      }],
+    },
     {
       label: 'File',
       submenu: [
@@ -53,8 +71,8 @@ export function setupApplicationMenu(themeMode: 'dark' | 'light' = 'dark', datab
           label: 'Maps',
           id: 'database',
           enabled: databaseMenuEnabled,
-          click: (_menuItem, browserWindow) => {
-            browserWindow?.webContents.send('open-database-browser');
+          click: (_menuItem: MenuItem, baseWindow?: BaseWindow) => {
+            getWindow(baseWindow)?.webContents.send('open-database-browser');
           }
         },
         { type: 'separator' },
@@ -140,6 +158,20 @@ export function setupApplicationMenu(themeMode: 'dark' | 'light' = 'dark', datab
       ],
     },
   ];
+
+  if (coreSupervisor) {
+    template.unshift({
+      label: 'Core',
+      submenu: (['start', 'stop', 'restart'] as const).map((action) => ({
+        label: `${action[0].toUpperCase()}${action.slice(1)} PhotonCore`,
+        click: () => {
+          coreSupervisor[action]().catch((error: unknown) => {
+            dialog.showErrorBox('PhotonCore process error', error instanceof Error ? error.message : String(error));
+          });
+        },
+      })),
+    });
+  }
 
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }

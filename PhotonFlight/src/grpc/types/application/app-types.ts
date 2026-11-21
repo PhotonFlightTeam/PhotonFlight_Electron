@@ -1,0 +1,24 @@
+// Compatibility exports. Wire types are generated from application-proto.
+export { CoreState } from '../../generated/photonflight/application/v1/CoreState';
+export type { CoreControlServiceClient as CoreControlService } from '../../generated/photonflight/application/v1/CoreControlService';
+export type { PointCloudServiceClient as PointCloudService } from '../../generated/photonflight/application/v1/PointCloudService';
+export type { GetStatusRequest } from '../../generated/photonflight/application/v1/GetStatusRequest';
+export type { GetOperationRequest } from '../../generated/photonflight/application/v1/GetOperationRequest';
+export type { LoadDatasetRequest } from '../../generated/photonflight/application/v1/LoadDatasetRequest';
+export type { UnloadDatasetRequest } from '../../generated/photonflight/application/v1/UnloadDatasetRequest';
+export type { SubscribeEventsRequest } from '../../generated/photonflight/application/v1/SubscribeEventsRequest';
+export type { ShutdownRequest } from '../../generated/photonflight/application/v1/ShutdownRequest';
+export type { GetDatasetRequest } from '../../generated/photonflight/application/v1/GetDatasetRequest';
+export type { GetAnnotationsRequest } from '../../generated/photonflight/application/v1/GetAnnotationsRequest';
+export type { StreamPointsRequest } from '../../generated/photonflight/application/v1/StreamPointsRequest';
+export type { Command } from '../../generated/photonflight/application/v1/Command';
+export type { CoreStatus__Output as CoreStatus } from '../../generated/photonflight/application/v1/CoreStatus';
+export type { LoadDatasetResponse__Output as LoadDatasetResponse } from '../../generated/photonflight/application/v1/LoadDatasetResponse';
+export type { UnloadDatasetResponse__Output as UnloadDatasetResponse } from '../../generated/photonflight/application/v1/UnloadDatasetResponse';
+export type { ShutdownResponse__Output as ShutdownResponse } from '../../generated/photonflight/application/v1/ShutdownResponse';
+export type { GetAnnotationsResponse__Output as GetAnnotationsResponse } from '../../generated/photonflight/application/v1/GetAnnotationsResponse';
+export type { PointBatch__Output as PointBatch } from '../../generated/photonflight/application/v1/PointBatch';
+export type { Dataset__Output as Dataset } from '../../generated/photonflight/application/v1/Dataset';
+export type { Operation__Output as Operation } from '../../generated/photonflight/application/v1/Operation';
+export type { CommandResult__Output as CommandResult } from '../../generated/photonflight/application/v1/CommandResult';
+export type { Event__Output as Event } from '../../generated/photonflight/application/v1/Event';
