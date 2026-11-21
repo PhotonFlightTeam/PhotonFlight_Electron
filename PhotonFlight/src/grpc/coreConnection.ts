@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { setTimeout as delay } from 'node:timers/promises';
 import { status as GrpcStatus } from '@grpc/grpc-js';
-import { CoreRpcClient, SUPPORTED_CORE_API_VERSION } from './client';
+import { createCoreRpcClient, SUPPORTED_CORE_API_VERSION, type CoreRpcClient } from './client';
 import type { CoreStatus__Output } from './generated/photonflight/application/v1/CoreStatus';
 
 interface ProcessStatus {
@@ -168,7 +168,7 @@ export class CoreConnection extends EventEmitter {
   private async connect(process: ProcessStatus, attempt: AbortController): Promise<void> {
     if (!process.host || !process.port) throw new Error('Core supervisor did not provide an endpoint');
     const deadline = Date.now() + this.startupTimeoutMs;
-    const client = new CoreRpcClient({ host: process.host, port: process.port, protoRoot: this.protoRoot });
+    const client = createCoreRpcClient({ host: process.host, port: process.port, protoRoot: this.protoRoot });
     this.client = client;
     await client.waitForReady(new Date(deadline));
     while (!attempt.signal.aborted && this.attempt === attempt && Date.now() < deadline) {

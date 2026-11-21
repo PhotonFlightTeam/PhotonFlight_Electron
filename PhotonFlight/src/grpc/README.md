@@ -53,6 +53,6 @@ Generation and runtime loading share these options: `keepCase`, `longs: String`,
 `enums: String`, `defaults`, and `oneofs`. Output uint64 values stay decimal strings
 to avoid JavaScript precision loss. Generated `__Output` types describe decoded
 responses; input types accept protobuf defaults. Generated service clients retain
-grpc-js's callback/stream interfaces; `CoreRpcClient.getStatus()` is a Promise
+grpc-js's callback/stream interfaces; `createCoreRpcClient().getStatus()` is a Promise
 wrapper. Oneof fields are top-level message fields with a string discriminator,
 not nested `{ kind, ... }` objects.
