@@ -37,6 +37,8 @@ coreSupervisor.on('log', ({ stream, text }) => {
   (stream === 'stderr' ? console.error : console.log)(`[PhotonCore] ${text.trimEnd()}`);
 });
 
+const client = coreConnection.getClients()
+
 let themeMode = 'dark';
 let databaseMenuEnabled = false;
 
@@ -255,9 +257,9 @@ app.on('window-all-closed', () => {
   }
 });
 
-app.on('will-quit', () => {
+app.on('will-quit', async () => {
   if (pythonProcess) {
     pythonProcess.kill();
   }
-  client.shutdown() // shutdown grpc server
+ await client.shutdown() // shutdown grpc server
 });
