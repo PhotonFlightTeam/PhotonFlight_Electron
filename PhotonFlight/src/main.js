@@ -8,6 +8,7 @@ import { createClerkBridge } from '@clerk/electron';
 import { storage } from '@clerk/electron/storage';
 import { spawn } from 'node:child_process'
 import { setupApplicationMenu } from './applicationMenu';
+import { client } from "./grcp/client"
 
 let themeMode = 'dark';
 
@@ -25,6 +26,7 @@ if (process.defaultApp && process.argv.length >= 2) {
   app.setAsDefaultProtocolClient('photonflight', process.execPath, [path.resolve(process.argv[1])]);
 }
 
+
 let pythonProcess = null; 
 const isDev = !app.isPackaged;
 
@@ -35,39 +37,39 @@ if (process.platform === 'linux' && process.env.XDG_SESSION_TYPE === 'wayland') 
 const startPythonBackend = () => {
   let backendPath; 
   let args = [];
-
+  
   if (isDev) {
     const backendDirectory = path.join(app.getAppPath(),
-      'src', 
-      'backend');
+    'src', 
+    'backend');
     const executableDirectory = process.platform === 'win32' ? 'Scripts' : 'bin';
     const executableName = process.platform === 'win32' ? 'uvicorn.exe' : 'uvicorn';
     const virtualEnvironment = ['venv', '.venv']
-      .map((directory) => path.join(backendDirectory, directory))
-      .find((directory) => existsSync(path.join(directory, executableDirectory, executableName)))
-      ?? path.join(backendDirectory, 'venv');
+    .map((directory) => path.join(backendDirectory, directory))
+    .find((directory) => existsSync(path.join(directory, executableDirectory, executableName)))
+    ?? path.join(backendDirectory, 'venv');
     backendPath = path.join(virtualEnvironment, executableDirectory, executableName);
     args = ['app.main:app', '--host', '127.0.0.1', '--port', '8000'];
   } else {
-
+    
     const backendExecutable = process.platform === 'win32' ? 'main.exe' : 'main';
     backendPath = path.join(process.resourcesPath, 'run', backendExecutable);
   }
-
+  
   pythonProcess = spawn(backendPath, args, {
     cwd: isDev ? path.join(app.getAppPath(), 'src', 'backend') : undefined,
     env: { ...process.env }
   });
-
+  
   pythonProcess.on('error', (error) => {
     console.error(`Failed to start Python backend at ${backendPath}:`, error);
   });
-
+  
   // Log backend outputs to Electron's terminal
   pythonProcess.stdout.on('data', (data) => {
     console.log(`[Python Stdout]: ${data}`);
   });
-
+  
   pythonProcess.stderr.on('data', (data) => {
     console.error(`[Python Stderr]: ${data}`);
   });
@@ -83,21 +85,26 @@ const createWindow = () => {
       preload: path.join(__dirname, 'preload.js'),
     },
   });
-
+  
+  mainWindow.webContents.on('console-message', (_event, details) => {
+    console.log(`[Renderer:${details.level}] ${details.message}`);
+  });
+  
   // and load the index.html of the app.
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
     mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
   }
-
+  
   // Open the DevTools.
   mainWindow.webContents.openDevTools();
 };
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+const grpcStatus = await client.getStatus(); // test to see if our grpc java server is live
   
   // Setup File System IPC handlers for Read/Write Processes
   ipcMain.handle('read-file', async (event, filePath) => {
@@ -108,7 +115,7 @@ app.whenReady().then(() => {
       return null;
     }
   });
-
+  
   ipcMain.handle('save-file', async (event, filePath, data) => {
     try {
       await fs.writeFile(filePath, data);
@@ -118,8 +125,8 @@ app.whenReady().then(() => {
       return false;
     }
   });
-
-
+  
+  
   let databaseMenuEnabled = false;
   ipcMain.on('database-menu-enabled', (_event, enabled) => {
     if (typeof enabled !== 'boolean') return;
@@ -128,9 +135,9 @@ app.whenReady().then(() => {
     const item = Menu.getApplicationMenu()?.getMenuItemById('database');
     if (item) item.enabled = enabled;
   });
-
+  
   registerPluginHandlers();
-
+  
   ipcMain.handle('theme:get-mode', () => themeMode);
   ipcMain.handle('theme:set-mode', (_event, mode) => {
     if (mode !== 'dark' && mode !== 'light') return themeMode;
@@ -143,12 +150,12 @@ app.whenReady().then(() => {
     themeMode = mode;
     setupApplicationMenu(themeMode, databaseMenuEnabled);
   });
-
+  
   setupApplicationMenu(themeMode, databaseMenuEnabled);
-
+  
   createWindow();
   startPythonBackend(); // Start the Python backend when the app is ready
-
+  
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
   app.on('activate', () => {
@@ -157,6 +164,8 @@ app.whenReady().then(() => {
     }
   });
 });
+
+//console.log(grpcStatus)
 
 // Quit when all windows are closed, except on macOS.
 app.on('window-all-closed', () => {
@@ -170,4 +179,5 @@ app.on('will-quit', () => {
   if (pythonProcess) {
     pythonProcess.kill();
   }
+  client.shutdown() // shutdown grpc server
 });
