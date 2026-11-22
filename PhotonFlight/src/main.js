@@ -37,7 +37,7 @@ coreSupervisor.on('log', ({ stream, text }) => {
   (stream === 'stderr' ? console.error : console.log)(`[PhotonCore] ${text.trimEnd()}`);
 });
 
-const client = coreConnection.getClients()
+export const pluginClient = coreConnection.getClients()
 
 let themeMode = 'dark';
 let databaseMenuEnabled = false;
