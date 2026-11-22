@@ -79,7 +79,7 @@ export default function MeasureTool({ pointsRef, activeTool, fileUrl }) {
         if (activeTool !== 'Measure') return; // Ensure tool is active
         if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
 
-        if (event.key.toLowerCase() === 'd') {
+        if (event.key.toLowerCase() === 'x') {
             // Remove the last three points (the last measure) from the store
             const existingMeasures = useStore.getState().measures;
             if (!existingMeasures || existingMeasures.length < 3) return;
