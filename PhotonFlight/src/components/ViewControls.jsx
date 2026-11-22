@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import useStore from '../useStore';
 import ViewCube from './ViewCube';
 
-const = WORLD_UP = new THREE.Vector3(0, 0, 1);
+const WORLD_UP = new THREE.Vector3(0, 0, 1);
 
 export const VIEWS = {
     top: new THREE.Vector3(0, 0, 1),
@@ -18,11 +18,11 @@ export const VIEWS = {
 
 export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
     const { camera, gl } = useThree();
-    if (!camera.up.equals(WORLD_UP)) camera.up.copy(WORLD_UP);
     const controlsRef = useRef();
     const isUpdatingFromSlider = useRef(false);
     const [axis, setAxis] = useState(null);
-    const [controls, setControls] = useState('position');
+    const controls = useStore((state) => state.controlMode);
+    const setControlMode = useStore((state) => state.controlMode);
     const bounds = useStore((state) => state.bounds);
     const boundsDiagonal = bounds?.getSize(new THREE.Vector3());
     const boundsLength = boundsDiagonal?.length() ?? 0;
@@ -49,10 +49,10 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
             }
 
             console.log('Control mode changed:', controlMode);
-            setControls(controlMode);
+            setControlMode(controlMode);
             void electronAPI.setControlMode(controlMode);
         });
-    }, [maxDist, setZoom]);
+    }, [maxDist, setZoom, setControlMode]);
 
     useEffect(() => {
         boundsAtFileChange.current = bounds;
@@ -135,16 +135,32 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
         const focus = () => canvas.focus();
         const capturePointer = (event) => canvas.setPointerCapture(event.pointerId);
 
-        // Function to apply a specific view based on position and direction
-        const applyView = (pos, dir) => {
-            controlsRef.current?.target?.set(0, 0, 0);
-            camera.position.set(pos[0], pos[1], pos[2]);
-            camera.up.set(dir[0], dir[1], dir[2]);
-            camera.lookAt(0, 0, 0);
-            controlsRef.current?.update();
-            // Update the slider to match the new perspective's distance
-            setZoom(distToZoom(camera.position.length()));
-        };
+    // Function to apply a specific view based on position and direction
+    const applyView = (pos, dir) => {
+      if (!boundsDiagonal) return;
+      controlsRef.current?.target?.set(0, 0, 0);
+      camera.position.set(pos[0], pos[1], pos[2]);
+      camera.up.set(dir[0], dir[1], dir[2]);
+      camera.lookAt(0, 0, 0);
+      controlsRef.current?.update();
+      // Update the slider to match the new perspective's distance
+      setZoom(distToZoom(camera.position.length()));
+    };
+
+    const applyNamedView = (key) => {
+      if (!boundsDiagonal) return false;
+
+      switch (key.toLowerCase()) {
+        case 't': applyView([0, 0, boundsDiagonal.z * 2], [0, 1, 0]); return true;
+        case 'b': applyView([0, 0, -boundsDiagonal.z * 2], [0, -1, 0]); return true;
+        case 'f': applyView([boundsDiagonal.x, 0, 0], [0, 0, 1]); return true;
+        case 'v': applyView([-boundsDiagonal.x, 0, 0], [0, 0, 1]); return true;
+        case 'l': applyView([0, -boundsDiagonal.y, 0], [0, 0, 1]); return true;
+        case 'r': applyView([0, boundsDiagonal.y, 0], [0, 0, 1]); return true;
+        case ' ': applyView([-boundsDiagonal.x / 2, 0, 0], [0, 0, 1]); return true;
+        default: return false;
+      }
+    };
 
         // Function to shift the camera position based on a given vector
         const shift = (pos) => {
@@ -154,45 +170,90 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
             camera.position.z += pos[2];
         };
 
-        // Function to rotate the camera around the target based on a given vector
-        const rotate = (dir) => {
-            controlsRef.current.target.x += dir[0];
-            controlsRef.current.target.y += dir[1];
-            controlsRef.current.target.z += dir[2];
-        };
+    // Function to rotate the camera around the target based on a given vector
+    const rotate = (dir) => {
+      controlsRef.current.target.x += dir[0];
+      controlsRef.current.target.y += dir[1];
+      controlsRef.current.target.z += dir[2];
+    };
 
-        // Keydown event handler to manage camera controls and view changes
-        const handleKeyDown = (event) => {
-            if (controls === 'flight') {
-                if (event.key === ' ') {
-                    camera.position.set(0, 0 , boundsDiagonal.z * 2);
-                    camera.up.set(0, 1, 0);
-                    camera.lookAt(0, 0, 0);
-                }
-                return;
-            };
-            if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
+    const panCamera = (direction) => {
+      const distance = boundsLength > 0 ? Math.max(boundsLength / 25, 0.1) : 1;
+      const forward = camera.getWorldDirection(new THREE.Vector3()).normalize();
+      const cameraRotation = camera.getWorldQuaternion(new THREE.Quaternion());
+      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cameraRotation).normalize();
+      const vertical = new THREE.Vector3(0, 1, 0).applyQuaternion(cameraRotation).normalize();
+      const directions = {
+        'pan-forward': forward,
+        'pan-backward': forward.clone().negate(),
+        'pan-left': right.clone().negate(),
+        'pan-right': right,
+        'pan-up': vertical,
+        'pan-down': vertical.clone().negate(),
+      };
+      const movement = directions[direction];
+      if (!movement) return;
 
-            switch (event.key.toLowerCase()) {
-                case 't': applyView([0, 0, boundsDiagonal.z * 2], [0, 1, 0]); break;
-                case 'b': applyView([0, 0, -boundsDiagonal.z * 2], [0, -1, 0]); break;
-                case 'f': applyView([boundsDiagonal.x, 0, 0], [0, 0, 1]); break;
-                case 'v': applyView([-boundsDiagonal.x, 0, 0], [0, 0, 1]); break;
-                case 'l': applyView([0, -boundsDiagonal.y, 0], [0, 0, 1]); break;
-                case 'r': applyView([0, boundsDiagonal.y, 0], [0, 0, 1]); break;
-                case 'x': if (axis === null) setAxis([10,0,0]); break;
-                case 'y': if (axis === null) setAxis([0,10,0]); break;
-                case 'z': if (axis === null) setAxis([0,0,10]); break;
-                case 'arrowup': if (axis !== null) shift(axis); break;
-                case 'arrowdown': if (axis !== null) shift(axis.map(num => -1 * num)); break;
-                case 'arrowright': if (axis !== null) rotate(axis); break;
-                case 'arrowleft': if (axis !== null) rotate(axis.map(num => -1 * num)); break;
-                case ' ': 
-                    event.preventDefault(); 
-                    applyView([0, 0, boundsDiagonal.z * 2], [0, 1, 0]);
-                    break;
-            }
-        };
+      const offset = movement.multiplyScalar(distance);
+      camera.position.add(offset);
+      controlsRef.current?.target?.add(offset);
+      controlsRef.current?.update();
+    };
+
+    const rotateCamera = (direction) => {
+      const forward = camera.getWorldDirection(new THREE.Vector3()).normalize();
+      const angle = direction === 'rotate-camera-left' ? -Math.PI / 12 : Math.PI / 12;
+      camera.up.applyAxisAngle(forward, angle).normalize();
+      controlsRef.current?.update();
+    };
+
+    // Keydown event handler to manage camera controls and view changes
+    const handleKeyDown = (event) => {
+      if (controls === 'flight') return;
+      if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
+      if (!boundsDiagonal && ['t', 'b', 'f', 'v', 'l', 'r', ' '].includes(event.key.toLowerCase())) return;
+
+      if (applyNamedView(event.key)) {
+        if (event.key === ' ') event.preventDefault();
+        return;
+      }
+
+      switch (event.key.toLowerCase()) {
+        case 'x': if (axis === null) setAxis([10,0,0]); break;
+        case 'y': if (axis === null) setAxis([0,10,0]); break;
+        case 'z': if (axis === null) setAxis([0,0,10]); break;
+        case 'arrowup': if (axis !== null) shift(axis); break;
+        case 'arrowdown': if (axis !== null) shift(axis.map(num => -1 * num)); break;
+        case 'arrowright': if (axis !== null) rotate(axis); break;
+        case 'arrowleft': if (axis !== null) rotate(axis.map(num => -1 * num)); break;
+      }
+    };
+
+    const handleNavigationAction = (event) => {
+      const key = event.detail;
+      if (key.startsWith('pan-')) {
+        panCamera(key);
+        return;
+      }
+      if (key === 'rotate-camera-left' || key === 'rotate-camera-right') {
+        rotateCamera(key);
+        return;
+      }
+
+      const axisVectors = {
+        x: [10, 0, 0],
+        y: [0, 10, 0],
+        z: [0, 0, 10],
+      };
+      if (axisVectors[key]) {
+        setAxis(axisVectors[key]);
+        return;
+      }
+
+      if (applyNamedView(key)) return;
+
+      handleKeyDown({ key, target: canvas, preventDefault: () => {} });
+    };
 
         const handleKeyUp = (event) => {
             if (controls === 'flight') return;
@@ -202,21 +263,23 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
             }
         };
 
-        // Add event listeners for click, keydown, and keyup events to the canvas
-        canvas.addEventListener('click', focus);
-        canvas.addEventListener('keydown', handleKeyDown);
-        canvas.addEventListener('keyup', handleKeyUp);
-        if (controls === 'flight') {
-            canvas.addEventListener('pointerdown', capturePointer);
-        }
+    // Add event listeners for click, keydown, and keyup events to the canvas
+    canvas.addEventListener('click', focus);
+    canvas.addEventListener('keydown', handleKeyDown);
+    canvas.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('view-control-action', handleNavigationAction);
+    if (controls === 'flight') {
+      canvas.addEventListener('pointerdown', capturePointer);
+    }
 
-        return () => {
-            canvas.removeEventListener('click', focus);
-            canvas.removeEventListener('keydown', handleKeyDown);
-            canvas.removeEventListener('keyup', handleKeyUp);
-            canvas.removeEventListener('pointerdown', capturePointer);
-        };
-    }, [gl, camera, axis, controls, maxDist, minDist, setZoom, boundsDiagonal]);
+    return () => {
+      canvas.removeEventListener('click', focus);
+      canvas.removeEventListener('keydown', handleKeyDown);
+      canvas.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('view-control-action', handleNavigationAction);
+      canvas.removeEventListener('pointerdown', capturePointer);
+    };
+  }, [gl, camera, axis, controls, maxDist, minDist, setZoom, boundsDiagonal, boundsLength]);
 
     if (controls === 'position') {
         return <OrbitControls
@@ -228,12 +291,17 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
             />;
     }
 
-    return (
-        <FlyControls
-        movementSpeed={speed}
-        rollSpeed={rollSpeed}
-        dragToLook={true}
-        autoForward={false}
-        />
-    );
+  const flightControlElement = gl.domElement.closest('.viewer-area')
+    ?? gl.domElement.parentElement
+    ?? gl.domElement;
+
+  return (
+    <FlyControls
+      domElement={flightControlElement}
+      movementSpeed={speed}
+      rollSpeed={rollSpeed}
+      dragToLook={true}
+      autoForward={false}
+    />
+  );
 }
