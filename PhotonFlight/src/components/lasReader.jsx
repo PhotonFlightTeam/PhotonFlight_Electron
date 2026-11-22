@@ -20,7 +20,6 @@ import PinTool from './Pin';
 import { usePointCloudTheme } from '../theme/pointCloudTheme';
 import DatabaseBrowser from './DatabaseBrowser';
 import { exportPointCloud } from './lasExport';
-import  { pluginClient } from "../main"
 
 // Parent Wrapper providing the WebGL Viewport Context
 export default function LasViewer({ fileUrl: initialFileUrl }) {
@@ -71,7 +70,7 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
           bytes,
         });
         useStore.setState({ colors: null, positions: null, measures: null, pinpoints: null });
-        await pluginClient.loadDataSet(filePath)
+        await window.electronAPI.core.loadDataSet(filePath)
       }
     });
     // Export a .las file from the viewer. Writes it to disk. TODO: Need to support .laz export, but the LASzip encoder is a pain to compile for Node. Maybe later. 

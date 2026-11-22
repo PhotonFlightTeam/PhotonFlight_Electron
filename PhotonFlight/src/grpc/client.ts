@@ -10,8 +10,7 @@ import type {
   ShutdownRequest, ShutdownResponse, SubscribeEventsRequest, Command, CommandResult, Event, GetOperationRequest, Operation,
   GetDatasetRequest,
   GetAnnotationsRequest,
-  StreamPointsRequest,
-  PointBatch
+  StreamPointsRequest
 } from './types/application/app-types';
 import type { Dataset } from './types/common/common-types';
 import { GetAnnotationsResponse } from './generated/photonflight/application/v1/GetAnnotationsResponse';
@@ -86,8 +85,8 @@ export function createCoreRpcClient({ host, port, protoRoot }: { host: string; p
     unary<GetDatasetRequest, Dataset>(points, "GetDataset", dataset)
   const getAnnotations = (annotations: GetAnnotationsRequest) => 
     unary<GetAnnotationsRequest, GetAnnotationsResponse>(points, "GetAnnotations", annotations)
-  const streamPoints = (pointreq: StreamPointsRequest) =>
-    unary<StreamPointsRequest, PointBatch>(points, "StreamPoints", pointreq) 
+  // StreamPoints is a server stream, so callers get the stream rather than a Promise.
+  const streamPoints = (pointreq: StreamPointsRequest) => points.streamPoints(pointreq)
   // Closing the shared channel cancels in-flight RPCs on both service clients.
   const close = (): void => {
     control.close()

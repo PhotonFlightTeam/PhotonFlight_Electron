@@ -13,6 +13,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     start: () => ipcRenderer.invoke('core:start'),
     stop: () => ipcRenderer.invoke('core:stop'),
     restart: () => ipcRenderer.invoke('core:restart'),
+    loadDataSet: (filePath) => ipcRenderer.invoke('core:load-dataset', filePath),
+    unloadDataset: (datasetId) => ipcRenderer.invoke('core:unload-dataset', datasetId),
+    executeCommand: (command) => ipcRenderer.invoke('core:execute-command', command),
+    getOperation: (request) => ipcRenderer.invoke('core:get-operation', request),
+    getDataSet: (request) => ipcRenderer.invoke('core:get-dataset', request),
+    getAnnotations: (request) => ipcRenderer.invoke('core:get-annotations', request),
     onStatusChanged: (callback) => {
       const handler = (_event, status) => callback(status);
       ipcRenderer.on('core:status-changed', handler);

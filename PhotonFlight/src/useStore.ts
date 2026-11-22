@@ -12,6 +12,7 @@ interface State {
   max: [number, number, number] | null;
   setAllPointCloudColors: (rgb: [number, number, number]) => void;
   setPositions: (postions: Float32Array) => void
+  
 }
 
 // State actions keep point-cloud color mutations in one place and give the

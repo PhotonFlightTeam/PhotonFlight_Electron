@@ -69,13 +69,21 @@ export class CoreConnection extends EventEmitter {
   getProcessStatus(): ProcessStatus { return this.supervisor.getStatus(); }
   getConnectionStatus(): ConnectionStatus { return { ...this.status }; }
 
-  getClients(): CoreRpcClient {
-    if (this.status.state !== 'ready' || !this.client) throw new Error('PhotonCore gRPC is not ready');
+  /** Resolves with the client once ready; polls until startupTimeoutMs elapses, then throws. */
+  async getClients(): Promise<CoreRpcClient> {
+    const deadline = Date.now() + this.startupTimeoutMs;
+    while (this.status.state !== 'ready' || !this.client) {
+      if (this.disposed || this.status.state === 'failed') {
+        throw new Error(this.status.error ?? 'PhotonCore gRPC is not available');
+      }
+      if (Date.now() >= deadline) throw new Error('Timed out waiting for PhotonCore gRPC to be ready');
+      await delay(100);
+    }
     return this.client;
   }
 
   async getCoreStatus(): Promise<CoreStatus__Output> {
-    const client = this.getClients();
+    const client = await this.getClients();
     const attempt = this.attempt!;
     const result = await client.getStatus(new Date(Date.now() + this.rpcTimeoutMs), attempt.signal);
     if (this.attempt !== attempt || attempt.signal.aborted) throw new Error('Core session changed during GetStatus');

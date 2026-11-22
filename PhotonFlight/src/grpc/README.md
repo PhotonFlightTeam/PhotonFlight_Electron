@@ -19,7 +19,7 @@ Main-process callers can use:
 connection.getProcessStatus();    // OS process, PID, generation, selected endpoint
 connection.getConnectionStatus(); // Handshake state and verified identity/version
 await connection.getCoreStatus(); // Fresh, deadline-bound GetStatus RPC
-connection.getClients();          // Typed control/points clients, only when ready
+await connection.getClients();    // Typed control/points clients; waits until ready, throws on failure/timeout
 ```
 
 Connection states are `disconnected`, `connecting`, `ready`, and `failed`. The
