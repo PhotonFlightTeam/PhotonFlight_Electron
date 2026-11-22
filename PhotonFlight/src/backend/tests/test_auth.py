@@ -1,4 +1,5 @@
 import base64
+from contextlib import nullcontext
 from unittest.mock import Mock
 
 import pytest
@@ -46,6 +47,7 @@ def api(monkeypatch):
     monkeypatch.setattr(auth.jwt, "decode", decode)
 
     connection = Mock()
+    connection.transaction.side_effect = lambda: nullcontext()
     previous_overrides = app.dependency_overrides.copy()
     app.dependency_overrides[get_settings] = lambda: settings
     app.dependency_overrides[get_connection] = lambda: connection
@@ -135,6 +137,30 @@ def test_empty_clerk_subject_is_rejected_before_database_lookup(api):
     assert response.status_code == 401
     assert response.json() == {"detail": "Invalid or expired Clerk session token."}
     connection.execute.assert_not_called()
+
+
+def test_create_user_me_uses_user_procedure(api):
+    client, connection, _, _ = api
+    result = Mock()
+    result.fetchone.return_value = {
+        "p_row": {
+            "user_id": USER_ID,
+            "name": "Test User",
+            "email": "test@example.com",
+        }
+    }
+    connection.execute.return_value = result
+
+    response = client.post(
+        "/api/users/me",
+        headers=HEADERS,
+        json={"name": "Test User", "email": "test@example.com"},
+    )
+
+    assert response.status_code == 200
+    query, params = connection.execute.call_args.args
+    assert "CALL public.create_or_update_user" in query
+    assert params == ("clerk-user", "Test User", "test@example.com")
 
 
 def test_publishable_key_derives_clerk_urls():

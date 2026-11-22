@@ -9,7 +9,7 @@ from fastapi import (
     Response,
 )
 from psycopg import Connection, sql
-from psycopg.errors import IntegrityError
+from psycopg.errors import IntegrityError, RaiseException
 
 from .auth import get_current_user_id
 from .database import get_connection
@@ -158,59 +158,167 @@ def make_router(
                 if record_id is not None:
                     get_record(record_id, user, connection)
 
-                check_links(connection, data, user)
+                if table == "maps":
+                    if record_id is None:
+                        query = (
+                            "CALL public.create_map(%s, %s, %s, %s, %s, %s, NULL)"
+                        )
+                        params = (
+                            user,
+                            data["name"],
+                            data.get("description"),
+                            data.get("location_name"),
+                            data.get("latitude"),
+                            data.get("longitude"),
+                        )
+                    else:
+                        query = (
+                            "CALL public.update_map(%s, %s, %s, %s, %s, "
+                            "%s, %s, NULL)"
+                        )
+                        params = (
+                            user,
+                            record_id,
+                            data["name"],
+                            data.get("description"),
+                            data.get("location_name"),
+                            data.get("latitude"),
+                            data.get("longitude"),
+                        )
 
-                # Ownership and uploader values come from authentication.
-                if owner:
-                    data[owner] = user
-                elif table in ("lidar_data", "picture"):
-                    data["uploaded_by"] = user
+                elif table == "drone":
+                    if record_id is None:
+                        query = (
+                            "CALL public.create_drone(%s, %s, %s, %s, %s, NULL)"
+                        )
+                        params = (
+                            user,
+                            data["name"],
+                            data.get("type"),
+                            data.get("serial_number"),
+                            data.get("status"),
+                        )
+                    else:
+                        query = (
+                            "CALL public.update_drone(%s, %s, %s, %s, %s, "
+                            "%s, NULL)"
+                        )
+                        params = (
+                            user,
+                            record_id,
+                            data["name"],
+                            data.get("type"),
+                            data.get("serial_number"),
+                            data.get("status"),
+                        )
 
-                columns = list(data)
+                elif table == "picture":
+                    if record_id is None:
+                        query = (
+                            "CALL public.create_picture(%s, %s, %s, %s, %s, "
+                            "%s, NULL)"
+                        )
+                        params = (
+                            user,
+                            data["map_id"],
+                            data["file_location"],
+                            data.get("capture_time"),
+                            data.get("width_px"),
+                            data.get("height_px"),
+                        )
+                    else:
+                        query = (
+                            "CALL public.update_picture(%s, %s, %s, %s, %s, "
+                            "%s, %s, NULL)"
+                        )
+                        params = (
+                            user,
+                            data["map_id"],
+                            record_id,
+                            data["file_location"],
+                            data.get("capture_time"),
+                            data.get("width_px"),
+                            data.get("height_px"),
+                        )
 
-                if record_id is None:
-                    query = sql.SQL(
-                        "INSERT INTO {table} ({columns}) "
-                        "VALUES ({values}) RETURNING {projection}"
-                    ).format(
-                        table=table_sql,
-                        columns=sql.SQL(", ").join(
-                            map(sql.Identifier, columns)
-                        ),
-                        values=sql.SQL(", ").join(
-                            sql.Placeholder() for _ in columns
-                        ),
-                        projection=projection,
-                    )
+                elif table == "lidar_data":
+                    if record_id is None:
+                        query = (
+                            "CALL public.create_lidar(%s, %s, %s, %s, %s, %s, "
+                            "NULL)"
+                        )
+                        params = (
+                            user,
+                            data["map_id"],
+                            data.get("file_location"),
+                            data.get("file_format"),
+                            data.get("latitude"),
+                            data.get("longitude"),
+                        )
+                    else:
+                        query = (
+                            "CALL public.update_lidar(%s, %s, %s, %s, %s, "
+                            "%s, %s, NULL)"
+                        )
+                        params = (
+                            user,
+                            data["map_id"],
+                            record_id,
+                            data.get("file_location"),
+                            data.get("file_format"),
+                            data.get("latitude"),
+                            data.get("longitude"),
+                        )
 
-                    params = tuple(data.values())
+                elif table == "anomalies":
+                    if record_id is None:
+                        query = (
+                            "CALL public.create_anomaly_full(%s, %s, %s, %s, "
+                            "%s, %s, %s, %s, %s, %s, NULL)"
+                        )
+                        params = (
+                            user,
+                            data["map_id"],
+                            data["anomaly_type"],
+                            data.get("description"),
+                            data.get("lidar_id"),
+                            data.get("latitude"),
+                            data.get("longitude"),
+                            data.get("status", "suspected"),
+                            data.get("verification_status", "pending"),
+                            data.get("verification_picture_id"),
+                        )
+                    else:
+                        query = (
+                            "CALL public.update_anomaly_full(%s, %s, %s, %s, "
+                            "%s, %s, %s, %s, %s, %s, %s, NULL)"
+                        )
+                        params = (
+                            user,
+                            data["map_id"],
+                            record_id,
+                            data["anomaly_type"],
+                            data.get("description"),
+                            data.get("lidar_id"),
+                            data.get("latitude"),
+                            data.get("longitude"),
+                            data.get("status", "suspected"),
+                            data.get("verification_status", "pending"),
+                            data.get("verification_picture_id"),
+                        )
 
                 else:
-                    assignments = sql.SQL(", ").join(
-                        sql.SQL("{} = %s").format(
-                            sql.Identifier(column)
-                        )
-                        for column in columns
+                    raise RuntimeError(
+                        "No write procedure is configured for this entity."
                     )
-
-                    query = sql.SQL(
-                        "UPDATE {table} SET {assignments} "
-                        "WHERE {key} = %s AND {guard} "
-                        "RETURNING {projection}"
-                    ).format(
-                        table=table_sql,
-                        assignments=assignments,
-                        key=key_sql,
-                        guard=guard,
-                        projection=projection,
-                    )
-
-                    params = (*data.values(), record_id, user)
 
                 row = connection.execute(query, params).fetchone()
-
                 if row is None:
                     raise HTTPException(404, "Record not found.")
+                if "p_row" in row:
+                    row = row["p_row"]
+                elif "p_anomaly_id" in row:
+                    row = {"anomaly_id": row["p_anomaly_id"]}
 
             return row
 
@@ -219,6 +327,11 @@ def make_router(
                 409,
                 "Record conflicts with database constraints.",
             ) from None
+        except RaiseException as error:
+            if error.sqlstate == "P0002":
+                raise HTTPException(404, "Record not found.") from None
+            if error.sqlstate == "22023":
+                raise HTTPException(422, str(error).split("CONTEXT:")[0].strip()) from None
 
     def create_record(
         data,
@@ -266,22 +379,39 @@ def make_router(
     ):
         try:
             with connection.transaction():
-                query = sql.SQL(
-                    "DELETE FROM {table} "
-                    "WHERE {key} = %s AND {guard} RETURNING {key}"
-                ).format(
-                    table=table_sql,
-                    key=key_sql,
-                    guard=guard,
+                procedure = {
+                    "maps": "delete_map",
+                    "drone": "delete_drone",
+                    "picture": "delete_picture",
+                    "lidar_data": "delete_lidar",
+                    "anomalies": "delete_anomaly",
+                }.get(table)
+
+                if procedure is None:
+                    raise RuntimeError(
+                        "No delete procedure is configured for this entity."
+                    )
+
+                if table in ("picture", "lidar_data", "anomalies"):
+                    if table == "lidar_data":
+                        record = get_record(record_id, user, connection)
+                        map_id = record["map_id"]
+                    elif table == "picture":
+                        record = get_record(record_id, user, connection)
+                        map_id = record["map_id"]
+                    else:
+                        record = get_record(record_id, user, connection)
+                        map_id = record["map_id"]
+                    params = (user, map_id, record_id)
+                else:
+                    params = (user, record_id)
+
+                query = (
+                    f"CALL public.{procedure}("
+                    + ", ".join("%s" for _ in params)
+                    + ")"
                 )
-
-                row = connection.execute(
-                    query,
-                    (record_id, user),
-                ).fetchone()
-
-                if row is None:
-                    raise HTTPException(404, "Record not found.")
+                connection.execute(query, params)
 
             # A successful deletion returns no response body.
             return Response(status_code=204)
@@ -291,5 +421,8 @@ def make_router(
                 409,
                 "Remove dependent records before deleting this record.",
             ) from None
+        except RaiseException as error:
+            if error.sqlstate == "P0002":
+                raise HTTPException(404, "Record not found.") from None
 
     return router
