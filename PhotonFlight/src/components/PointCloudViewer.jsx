@@ -65,9 +65,11 @@ export default function PointCloudViewer({ fileUrl, active, pointsRef }) {
   // Build Three.js Buffer Geometry
   useEffect(() => {
     let slopeWorker;
+    let builtGeo;
 
     if (pointData && pointData.attributes.POSITION) {
       const geo = new THREE.BufferGeometry();
+      builtGeo = geo;
       const positions = pointData.attributes.POSITION.value;
       setPositions(positions);
       geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -123,6 +125,8 @@ export default function PointCloudViewer({ fileUrl, active, pointsRef }) {
 
     return () => {
       if (slopeWorker) slopeWorker.terminate();
+      // Frees the GPU buffers; the replaced geometry would otherwise leak on every rebuild.
+      builtGeo?.dispose();
     };
   }, [pointData, active, rgbMinMax, mode]);
 

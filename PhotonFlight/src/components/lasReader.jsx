@@ -59,17 +59,20 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
     const offImport = window.electronAPI.onFileImported(async (filePath) => { // Import a .las file and load it into the viewer
       const buffer = await window.electronAPI.readFile(filePath);
       if (buffer) {
-        const bytes = new Uint8Array(buffer);
-        const arrayBuffer = bytes.buffer.slice(
-          bytes.byteOffset,
-          bytes.byteOffset + bytes.byteLength,
-        );
+        // The IPC result is already a Uint8Array, so wrapping or slicing it again would copy the
+        // whole file. The viewer and export both copy before parsing, so one shared buffer is safe.
+        const received = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+        const arrayBuffer = received.byteOffset === 0 && received.byteLength === received.buffer.byteLength
+          ? received.buffer
+          : received.buffer.slice(received.byteOffset, received.byteOffset + received.byteLength);
+        const bytes = new Uint8Array(arrayBuffer); // a view over the same memory, not a copy
         setFileSource(arrayBuffer);
         setCurrentFile({
           name: filePath.split(/[\\/]/).pop(),
           bytes,
         });
         useStore.setState({ colors: null, positions: null, measures: null, pinpoints: null });
+        await window.electronAPI.core.loadDataSet(filePath)
       }
     });
     // Export a .las file from the viewer. Writes it to disk. TODO: Need to support .laz export, but the LASzip encoder is a pain to compile for Node. Maybe later. 
@@ -107,7 +110,7 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
   };
 
     return (
-    <div className="las-viewer" data-theme={mode}>
+    <div className="las-viewer" data-theme={mode}>1
       <DatabaseBrowser
         currentFile={currentFile}
         onLoadFile={loadDatabaseFile}

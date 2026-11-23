@@ -104,3 +104,16 @@ __pycache__/
 *.py[cod]
 
 .venv/
+venv/
+
+# JetBrains IDE Cache
+.idea/
+
+# Generated gRPC files
+/PhotonFlight/src/grpc/generated/
+.vscode
+
+# Local config / proto
+PhotonFlight/forge.config.js
+PhotonFlight/vite.main.config.mjs
+/PhotonFlight/proto

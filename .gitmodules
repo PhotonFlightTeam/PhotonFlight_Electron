@@ -1,0 +1,3 @@
+[submodule "PhotonFlight/proto"]
+	path = PhotonFlight/proto
+	url = https://github.com/PhotonFlightTeam/application-proto.git

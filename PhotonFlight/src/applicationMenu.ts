@@ -1,15 +1,20 @@
 import { BrowserWindow, Menu, dialog, type BaseWindow, type KeyboardEvent, type MenuItem, type MenuItemConstructorOptions } from 'electron';
 import { importPlugin } from './pluginManager';
-import useStore from "./useStore"
-
-//const setAllPointCloudColors = useStore((state) => state.setAllPointCloudColors)
+interface ApplicationMenuOptions {
+  databaseMenuEnabled?: boolean;
+  // Maps the chosen file to the path the renderer should load (e.g. converting LAS to LAZ).
+  prepareImport?: (filePath: string) => Promise<string>;
+}
 
 function getWindow(baseWindow: BaseWindow | undefined): BrowserWindow | null {
   if (baseWindow instanceof BrowserWindow) return baseWindow;
   return BrowserWindow.getFocusedWindow();
 }
 
-export function setupApplicationMenu(themeMode: 'dark' | 'light' = 'dark', databaseMenuEnabled = false,): void {
+export function setupApplicationMenu(
+  themeMode: 'dark' | 'light' = 'dark',
+  { databaseMenuEnabled = false, prepareImport }: ApplicationMenuOptions = {},
+): void {
   const template: MenuItemConstructorOptions[] = [
     {
       label: 'File',
@@ -28,7 +33,12 @@ export function setupApplicationMenu(themeMode: 'dark' | 'light' = 'dark', datab
               ],
             });
             if (!canceled && filePaths.length > 0) {
-              window.webContents.send('file-imported', filePaths[0]);
+              try {
+                const importPath = prepareImport ? await prepareImport(filePaths[0]) : filePaths[0];
+                window.webContents.send('file-imported', importPath);
+              } catch (error) {
+                dialog.showErrorBox('Import failed', error instanceof Error ? error.message : String(error));
+              }
             }
           },
         },
@@ -53,8 +63,8 @@ export function setupApplicationMenu(themeMode: 'dark' | 'light' = 'dark', datab
           label: 'Maps',
           id: 'database',
           enabled: databaseMenuEnabled,
-          click: (_menuItem, browserWindow) => {
-            browserWindow?.webContents.send('open-database-browser');
+          click: (_menuItem: MenuItem, baseWindow?: BaseWindow) => {
+            getWindow(baseWindow)?.webContents.send('open-database-browser');
           }
         },
         { type: 'separator' },
