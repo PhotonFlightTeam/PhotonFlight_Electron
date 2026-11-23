@@ -57,9 +57,7 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
 
     useEffect(() => {
         const electronAPI = window.electronAPI;
-        if (!electronAPI?.onControlModeChanged) return;
-
-        return electronAPI.onControlModeChanged((controlMode) => {
+        const handleControlModeChange = (controlMode) => {
             if (controlMode !== 'flight' && controlMode !== 'position') return;
 
             if (controlMode === 'flight') {
@@ -69,8 +67,16 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
 
             console.log('Control mode changed:', controlMode);
             setControlMode(controlMode);
-            void electronAPI.setControlMode(controlMode);
-        });
+            void electronAPI?.setControlMode?.(controlMode);
+        };
+        const handleControlModeRequest = (event) => handleControlModeChange(event.detail);
+        window.addEventListener('control-mode-requested', handleControlModeRequest);
+
+        const unsubscribe = electronAPI?.onControlModeChanged?.(handleControlModeChange);
+        return () => {
+            window.removeEventListener('control-mode-requested', handleControlModeRequest);
+            unsubscribe?.();
+        };
     }, [maxDist, setZoom, setControlMode]);
 
     useEffect(() => {
@@ -297,6 +303,31 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
     const flightControlElement = gl.domElement.closest('.viewer-area')
         ?? gl.domElement.parentElement
         ?? gl.domElement;
+
+    useEffect(() => {
+        if (controls !== 'flight') return;
+
+        const pointersStartedInViewer = new Set();
+        const trackPointerDown = (event) => {
+            if (flightControlElement.contains(event.target)) {
+                pointersStartedInViewer.add(event.pointerId);
+            } else {
+                pointersStartedInViewer.delete(event.pointerId);
+            }
+        };
+        const filterUnmatchedPointerUp = (event) => {
+            if (pointersStartedInViewer.delete(event.pointerId)) return;
+            if (flightControlElement.contains(event.target)) event.stopImmediatePropagation();
+        };
+
+        window.addEventListener('pointerdown', trackPointerDown, true);
+        window.addEventListener('pointerup', filterUnmatchedPointerUp, true);
+
+        return () => {
+            window.removeEventListener('pointerdown', trackPointerDown, true);
+            window.removeEventListener('pointerup', filterUnmatchedPointerUp, true);
+        };
+    }, [controls, flightControlElement]);
 
     return (
         <>

@@ -25,6 +25,8 @@ vi.mock('@react-three/drei', async () => {
       viewMocks.flyControlsDomElement = domElement;
       return <div data-testid="fly-controls" />;
     },
+    GizmoHelper: ({ children }) => children,
+    GizmoViewcube: () => null,
   };
 });
 
@@ -263,6 +265,26 @@ describe('ViewControls', () => {
     }
   });
 
+  it('initializes flight mode to the default speed when selected from navigation', () => {
+    const previousElectronAPI = window.electronAPI;
+    const setZoom = vi.fn();
+    const setControlMode = vi.fn().mockResolvedValue('flight');
+    window.electronAPI = { setControlMode };
+
+    try {
+      render(<ViewControls zoomRequest={{ value: 180 }} setZoom={setZoom} />);
+
+      act(() => window.dispatchEvent(new CustomEvent('control-mode-requested', { detail: 'flight' })));
+
+      expect(setZoom).toHaveBeenCalledWith(40);
+      expect(useStore.getState().controlMode).toBe('flight');
+      expect(setControlMode).toHaveBeenCalledWith('flight');
+    } finally {
+      if (previousElectronAPI === undefined) delete window.electronAPI;
+      else window.electronAPI = previousElectronAPI;
+    }
+  });
+
   it('captures the pointer only in flight mode', () => {
     const previousElectronAPI = window.electronAPI;
     let handleControlModeChange;
@@ -294,5 +316,30 @@ describe('ViewControls', () => {
     render(<ViewControls zoomRequest={{ value: 180 }} setZoom={vi.fn()} />);
 
     expect(viewMocks.flyControlsDomElement).toBe(viewerArea);
+  });
+
+  it('ignores a pointer release in the viewer when the press started outside it', () => {
+    useStore.setState({ controlMode: 'flight' });
+    render(<ViewControls zoomRequest={{ value: 180 }} setZoom={vi.fn()} />);
+
+    const pointerUps = vi.fn();
+    viewerArea.addEventListener('pointerup', pointerUps);
+    document.body.appendChild(viewerArea);
+    const sidebar = document.createElement('div');
+    document.body.appendChild(sidebar);
+
+    try {
+      fireEvent.pointerDown(sidebar, { pointerId: 1 });
+      fireEvent.pointerUp(canvas, { pointerId: 1 });
+      expect(pointerUps).not.toHaveBeenCalled();
+
+      fireEvent.pointerDown(canvas, { pointerId: 2 });
+      fireEvent.pointerUp(canvas, { pointerId: 2 });
+      expect(pointerUps).toHaveBeenCalledOnce();
+    } finally {
+      viewerArea.removeEventListener('pointerup', pointerUps);
+      viewerArea.remove();
+      sidebar.remove();
+    }
   });
 });

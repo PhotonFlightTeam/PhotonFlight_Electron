@@ -112,7 +112,10 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
   };
 
     return (
-    <div className="las-viewer" data-theme={mode}>
+    <div
+      className="las-viewer"
+      data-theme={mode}
+      data-sidebar-open={activeNavItem === 'navigation' || activeNavItem === 'plugins'}>
       <DatabaseBrowser
         currentFile={currentFile}
         onLoadFile={loadDatabaseFile}
@@ -165,44 +168,6 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
           <ToolBar activeTool={activeTool} setActiveTool={setActiveTool} />
         </div>
 
-        <Box className="view-color-box">
-          <FormControl fullWidth>
-            <InputLabel id="View Color Selection">View Color</InputLabel>
-            
-            <Select
-              labelId="View Label"
-              id="View Selection"
-              value={active}
-              label="View Color"
-              onChange={handleChange}>
-
-              <MenuItem value={'base'}>Base</MenuItem>
-              <MenuItem value={'height'}>Height</MenuItem>
-              <MenuItem value={'slope'}>Slope</MenuItem>
-            </Select>
-          </FormControl>
-        </Box>
-
-        <Box className="zoom-box">
-          <div 
-            onClick={() => handleZoomRequest(Math.min(zoom + 10, 200))}
-            className="zoom-in">
-            +
-          </div>
-          <Slider
-            orientation="vertical"
-            value={zoom}
-            min={10}
-            max={200}
-            onChange={(event, newValue) => handleZoomRequest(newValue)}
-            aria-label="Camera Zoom" />
-          <div 
-            onClick={() => handleZoomRequest(Math.max(zoom - 10, 10))}
-            className="zoom-out">
-            -
-          </div>
-        </Box>
-
         {selectedPlugin && (
           <PluginDetails
             plugin={selectedPlugin}
@@ -212,6 +177,44 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
             error={pluginManager.error} />
         )}
       </div>
+
+      <Box className="view-color-box">
+        <FormControl fullWidth>
+          <InputLabel id="View Color Selection">View Color</InputLabel>
+
+          <Select
+            labelId="View Label"
+            id="View Selection"
+            value={active}
+            label="View Color"
+            onChange={handleChange}>
+
+            <MenuItem value={'base'}>Base</MenuItem>
+            <MenuItem value={'height'}>Height</MenuItem>
+            <MenuItem value={'slope'}>Slope</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
+
+      <Box className="zoom-box">
+        <div
+          onClick={() => handleZoomRequest(Math.min(zoom + 10, 200))}
+          className="zoom-in">
+          +
+        </div>
+        <Slider
+          orientation="vertical"
+          value={zoom}
+          min={10}
+          max={200}
+          onChange={(event, newValue) => handleZoomRequest(newValue)}
+          aria-label="Camera Zoom" />
+        <div
+          onClick={() => handleZoomRequest(Math.max(zoom - 10, 10))}
+          className="zoom-out">
+          -
+        </div>
+      </Box>
     </div>
   );
 }

@@ -51,12 +51,10 @@ const holdRepeatInterval = 80;
 export default function Navigation() {
     const setActiveNavItem = useStore((state) => state.setActiveNavItem);
     const controlMode = useStore((state) => state.controlMode);
-    const setControlMode = useStore((state) => state.setControlMode);
     const activeHold = useRef(null);
 
     const changeControlMode = (mode) => {
-        setControlMode(mode);
-        void window.electronAPI?.setControlMode?.(mode);
+        window.dispatchEvent(new CustomEvent('control-mode-requested', { detail: mode }));
     };
 
     const requestAction = (key) => {

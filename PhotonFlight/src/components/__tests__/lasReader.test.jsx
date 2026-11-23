@@ -100,6 +100,10 @@ describe('LasViewer', () => {
     expect(screen.getByTestId('measure-tool')).toHaveAttribute('data-tool', 'Select');
     expect(screen.getByTestId('pin-tool')).toHaveAttribute('data-tool', 'Select');
     expect(screen.getByRole('slider', { name: 'Camera Zoom' })).toHaveAttribute('aria-valuenow', '180');
+    expect(screen.getByRole('slider', { name: 'Camera Zoom' }).closest('.zoom-box').parentElement)
+      .toHaveClass('las-viewer');
+    expect(screen.getByRole('slider', { name: 'Camera Zoom' }).closest('.viewer-area'))
+      .toBeNull();
 
     fireEvent.click(screen.getByText('+'));
     expect(screen.getByRole('slider', { name: 'Camera Zoom' })).toHaveAttribute('aria-valuenow', '190');
@@ -118,6 +122,7 @@ describe('LasViewer', () => {
 
     fireEvent.mouseDown(screen.getByRole('combobox'));
     fireEvent.click(screen.getByRole('option', { name: 'Height' }));
+    expect(screen.getByRole('combobox').closest('.viewer-area')).toBeNull();
     expect(screen.getByTestId('point-cloud')).toHaveAttribute('data-active', 'height');
     expect(useStore.getState().colors).toBeNull();
   });
@@ -128,6 +133,8 @@ describe('LasViewer', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Navigation' }));
     expect(useStore.getState().activeNavItem).toBe('navigation');
     expect(screen.getByRole('complementary', { name: 'Navigation' })).toHaveTextContent('NAVIGATION');
+    expect(screen.getByRole('slider', { name: 'Camera Zoom' }).closest('.las-viewer'))
+      .toHaveAttribute('data-sidebar-open', 'true');
 
     fireEvent.click(screen.getByRole('button', { name: 'Close navigation panel' }));
     expect(useStore.getState().activeNavItem).toBeNull();

@@ -1,6 +1,6 @@
 /* ---------- Side panel (search + plugin list) ---------- */
 .plugin-sidebar {
-	width: 280px;
+	width: var(--navigation-sidebar-width, 280px);
 	flex-shrink: 0;
 	display: flex;
 	flex-direction: column;
