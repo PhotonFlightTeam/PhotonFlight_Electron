@@ -32,7 +32,10 @@ function unary<Req, Res>(client: grpc.Client, method: string, req: Req, ms = 10_
         if (error) {
           console.error(`[gRPC] ${method} failed:`, error.code, error.details);
           reject(error);
-        } else resolve(result);
+        } else {
+          console.log(result)
+          resolve(result)
+        };
       });
   });
 }

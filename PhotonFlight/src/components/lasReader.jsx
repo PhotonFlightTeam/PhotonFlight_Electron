@@ -59,11 +59,13 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
     const offImport = window.electronAPI.onFileImported(async (filePath) => { // Import a .las file and load it into the viewer
       const buffer = await window.electronAPI.readFile(filePath);
       if (buffer) {
-        const bytes = new Uint8Array(buffer);
-        const arrayBuffer = bytes.buffer.slice(
-          bytes.byteOffset,
-          bytes.byteOffset + bytes.byteLength,
-        );
+        // The IPC result is already a Uint8Array, so wrapping or slicing it again would copy the
+        // whole file. The viewer and export both copy before parsing, so one shared buffer is safe.
+        const received = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+        const arrayBuffer = received.byteOffset === 0 && received.byteLength === received.buffer.byteLength
+          ? received.buffer
+          : received.buffer.slice(received.byteOffset, received.byteOffset + received.byteLength);
+        const bytes = new Uint8Array(arrayBuffer); // a view over the same memory, not a copy
         setFileSource(arrayBuffer);
         setCurrentFile({
           name: filePath.split(/[\\/]/).pop(),

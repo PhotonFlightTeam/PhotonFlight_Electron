@@ -2,6 +2,8 @@ import { BrowserWindow, Menu, dialog, type BaseWindow, type KeyboardEvent, type 
 import { importPlugin } from './pluginManager';
 interface ApplicationMenuOptions {
   databaseMenuEnabled?: boolean;
+  // Maps the chosen file to the path the renderer should load (e.g. converting LAS to LAZ).
+  prepareImport?: (filePath: string) => Promise<string>;
 }
 
 function getWindow(baseWindow: BaseWindow | undefined): BrowserWindow | null {
@@ -11,7 +13,7 @@ function getWindow(baseWindow: BaseWindow | undefined): BrowserWindow | null {
 
 export function setupApplicationMenu(
   themeMode: 'dark' | 'light' = 'dark',
-  { databaseMenuEnabled = false }: ApplicationMenuOptions = {},
+  { databaseMenuEnabled = false, prepareImport }: ApplicationMenuOptions = {},
 ): void {
   const template: MenuItemConstructorOptions[] = [
     {
@@ -31,7 +33,12 @@ export function setupApplicationMenu(
               ],
             });
             if (!canceled && filePaths.length > 0) {
-              window.webContents.send('file-imported', filePaths[0]);
+              try {
+                const importPath = prepareImport ? await prepareImport(filePaths[0]) : filePaths[0];
+                window.webContents.send('file-imported', importPath);
+              } catch (error) {
+                dialog.showErrorBox('Import failed', error instanceof Error ? error.message : String(error));
+              }
             }
           },
         },

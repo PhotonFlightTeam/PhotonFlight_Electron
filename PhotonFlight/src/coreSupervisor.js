@@ -26,7 +26,10 @@ export function coreLaunchOptions({ appPath, resourcesPath, isPackaged, env = pr
   const java = env.PHOTON_CORE_JAVA || (env.JAVA_HOME
     ? path.join(env.JAVA_HOME, 'bin', process.platform === 'win32' ? 'java.exe' : 'java')
     : 'java');
-  const args = ['-jar', jar];
+  // The JVM has no "unlimited" heap, so cap it at a share of physical RAM (default is 25%).
+  // JVM options must come before -jar.
+  const maxRamPercent = Number(env.PHOTON_CORE_MAX_RAM_PERCENT) || 90;
+  const args = [`-XX:MaxRAMPercentage=${maxRamPercent}`, '-jar', jar];
   return {
     command: java,
     args,
