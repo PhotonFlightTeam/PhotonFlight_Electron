@@ -95,7 +95,7 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
         return Math.min(Math.max(distance, minDist), maxDist);
     };
 
-    // Moves the camera to look at the origin from `direction`. Shared by the view cube,
+    // Moves the camera to look at the origin from direction. Shared by the view cube,
     // the view keys, the navigation sidebar and the reset after a new file loads.
     const applyView = (direction) => {
         const dir = direction.clone().normalize();
@@ -164,7 +164,7 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
         const focus = () => canvas.focus();
         const capturePointer = (event) => canvas.setPointerCapture(event.pointerId);
 
-        // Returns true if `key` was a view key (T/B/F/V/L/R/Space) and the view was applied.
+        // Returns true if key was a view key (T/B/F/V/L/R/Space) and the view was applied.
         const applyNamedView = (key) => {
             const direction = VIEW_KEYS[key.toLowerCase()];
             if (!direction) return false;

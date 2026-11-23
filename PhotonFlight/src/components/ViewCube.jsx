@@ -2,8 +2,8 @@ import { GizmoHelper, GizmoViewcube } from '@react-three/drei';
 import * as THREE from 'three';
 import { usePointCloudTheme } from '../theme/pointCloudTheme';
 
-const CUBE_ROTATION = new THREE.Euler(Math.pi / 2, 0, 0);
-const CUBE_TO_WORLD = new THGREE.Quaternion().setFromEuler(CUBE_ROTATION);
+const CUBE_ROTATION = new THREE.Euler(Math.PI / 2, 0, 0);
+const CUBE_TO_WORLD = new THREE.Quaternion().setFromEuler(CUBE_ROTATION);
 
 const CUBE_COLORS = {
     dark: { color: '#10243a', hoverColor: '#38bdf8', textColor: '#eaf6ff', strokeColor: '#38bdf8' },
@@ -23,7 +23,7 @@ export default function ViewCube({ onSelectView }) {
     const colors = CUBE_COLORS[mode] ?? CUBE_COLORS.dark;
     
     const handleClick = (event) => {
-        event.stopPropogation();
+        event.stopPropagation();
         onSelectView(viewDirectionFromCubeClick(event));
         return null;
     };

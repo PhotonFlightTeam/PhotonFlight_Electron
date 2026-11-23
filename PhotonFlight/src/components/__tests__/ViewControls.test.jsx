@@ -7,6 +7,7 @@ import useStore from '../../useStore';
 const viewMocks = vi.hoisted(() => ({
   useThree: vi.fn(),
   controls: null,
+  flyControlsDomElement: null,
 }));
 
 vi.mock('@react-three/fiber', () => ({
@@ -20,20 +21,30 @@ vi.mock('@react-three/drei', async () => {
       React.useImperativeHandle(ref, () => viewMocks.controls);
       return <div data-testid="orbit-controls" />;
     }),
-    FlyControls: () => <div data-testid="fly-controls" />,
+    FlyControls: ({ domElement }) => {
+      viewMocks.flyControlsDomElement = domElement;
+      return <div data-testid="fly-controls" />;
+    },
   };
 });
 
 describe('ViewControls', () => {
   let camera;
   let canvas;
+  let viewerArea;
 
   beforeEach(() => {
-    useStore.setState({ bounds: null });
+    useStore.setState({ bounds: null, controlMode: 'position' });
     camera = new THREE.PerspectiveCamera();
     camera.position.set(0, 0, 50);
     canvas = document.createElement('canvas');
+    viewerArea = document.createElement('div');
+    viewerArea.className = 'viewer-area';
+    const canvasContainer = document.createElement('div');
+    canvasContainer.appendChild(canvas);
+    viewerArea.appendChild(canvasContainer);
     canvas.setPointerCapture = vi.fn();
+    viewMocks.flyControlsDomElement = null;
     viewMocks.controls = {
       target: new THREE.Vector3(),
       update: vi.fn(),
@@ -45,6 +56,9 @@ describe('ViewControls', () => {
 
   it('renders orbit controls and changes to the top view when T is pressed', () => {
     const setZoom = vi.fn();
+    useStore.setState({
+      bounds: new THREE.Box3(new THREE.Vector3(0, 0, 0), new THREE.Vector3(1, 1, 250)),
+    });
     const { getByTestId } = render(
       <ViewControls zoomRequest={{ value: 180 }} setZoom={setZoom} />,
     );
@@ -56,6 +70,87 @@ describe('ViewControls', () => {
     expect(camera.up.toArray()).toEqual([0, 1, 0]);
     expect(viewMocks.controls.update).toHaveBeenCalled();
     expect(setZoom).toHaveBeenCalled();
+  });
+
+  it('applies view and axis actions requested from the navigation sidebar', () => {
+    useStore.setState({
+      bounds: new THREE.Box3(new THREE.Vector3(0, 0, 0), new THREE.Vector3(1, 1, 250)),
+    });
+    render(<ViewControls zoomRequest={{ value: 180 }} setZoom={vi.fn()} />);
+
+    act(() => window.dispatchEvent(new CustomEvent('view-control-action', { detail: 't' })));
+    expect(camera.position.toArray()).toEqual([0, 0, 500]);
+
+    act(() => window.dispatchEvent(new CustomEvent('view-control-action', { detail: 'x' })));
+    act(() => window.dispatchEvent(new CustomEvent('view-control-action', { detail: 'ArrowUp' })));
+    expect(camera.position.x).toBe(10);
+  });
+
+  it('keeps keyboard shortcuts disabled in flight mode while allowing sidebar view buttons', () => {
+    useStore.setState({
+      bounds: new THREE.Box3(new THREE.Vector3(0, 0, 0), new THREE.Vector3(1, 1, 250)),
+      controlMode: 'flight',
+    });
+    render(<ViewControls zoomRequest={{ value: 180 }} setZoom={vi.fn()} />);
+
+    const initialPosition = camera.position.clone();
+    fireEvent.keyDown(canvas, { key: 't' });
+    fireEvent.keyDown(canvas, { key: ' ' });
+    expect(camera.position.toArray()).toEqual(initialPosition.toArray());
+
+    act(() => window.dispatchEvent(new CustomEvent('view-control-action', { detail: 't' })));
+    expect(camera.position.toArray()).toEqual([0, 0, 500]);
+  });
+
+  it('pans along camera axes and rotates the camera top in the expected directions', () => {
+    const bounds = new THREE.Box3(new THREE.Vector3(0, 0, 0), new THREE.Vector3(1, 1, 250));
+    useStore.setState({ bounds });
+    render(<ViewControls zoomRequest={{ value: 180 }} setZoom={vi.fn()} />);
+    const panDistance = bounds.getSize(new THREE.Vector3()).length() / 25;
+
+    const initialCameraPosition = camera.position.clone();
+    const initialTarget = viewMocks.controls.target.clone();
+    act(() => window.dispatchEvent(new CustomEvent('view-control-action', { detail: 'pan-forward' })));
+
+    expect(camera.position.clone().sub(initialCameraPosition).z).toBeCloseTo(-panDistance);
+    expect(viewMocks.controls.target.clone().sub(initialTarget).z).toBeCloseTo(-panDistance);
+
+    camera.quaternion.setFromAxisAngle(new THREE.Vector3(0, 0, -1), Math.PI / 2);
+    const initialVerticalPosition = camera.position.clone();
+    const initialVerticalTarget = viewMocks.controls.target.clone();
+    const expectedVertical = new THREE.Vector3(0, 1, 0)
+      .applyQuaternion(camera.quaternion)
+      .multiplyScalar(panDistance);
+    act(() => window.dispatchEvent(new CustomEvent('view-control-action', { detail: 'pan-up' })));
+
+    expect(camera.position.clone().sub(initialVerticalPosition).distanceTo(expectedVertical)).toBeCloseTo(0);
+    expect(viewMocks.controls.target.clone().sub(initialVerticalTarget).distanceTo(expectedVertical)).toBeCloseTo(0);
+
+    const initialUp = camera.up.clone();
+    act(() => window.dispatchEvent(new CustomEvent('view-control-action', { detail: 'rotate-camera-left' })));
+    expect(camera.up.x).toBeLessThan(initialUp.x);
+    act(() => window.dispatchEvent(new CustomEvent('view-control-action', { detail: 'rotate-camera-right' })));
+    expect(camera.up.x).toBeCloseTo(initialUp.x);
+    expect(camera.up.y).toBeCloseTo(initialUp.y);
+    expect(camera.up.z).toBeCloseTo(initialUp.z);
+  });
+
+  it('resets to the selected view with Z up in position and flight modes', () => {
+    const bounds = new THREE.Box3(
+      new THREE.Vector3(-10, -20, -30),
+      new THREE.Vector3(10, 20, 30),
+    );
+    useStore.setState({ bounds });
+    render(<ViewControls zoomRequest={{ value: 180 }} setZoom={vi.fn()} />);
+    fireEvent.keyDown(canvas, { key: ' ' });
+    expect(camera.position.toArray()).toEqual([-10, 0, 0]);
+    expect(camera.up.toArray()).toEqual([0, 0, 1]);
+    expect(viewMocks.controls.target.toArray()).toEqual([0, 0, 0]);
+
+    act(() => useStore.setState({ controlMode: 'flight' }));
+    act(() => window.dispatchEvent(new CustomEvent('view-control-action', { detail: ' ' })));
+    expect(camera.position.toArray()).toEqual([-10, 0, 0]);
+    expect(camera.up.toArray()).toEqual([0, 0, 1]);
   });
 
   it('applies a slider zoom request to the camera', () => {
@@ -96,7 +191,7 @@ describe('ViewControls', () => {
 
       act(() => useStore.setState({ bounds: importedBounds }));
 
-      const expectedDistance = importedBounds.getSize(new THREE.Vector3()).length() * 2;
+      const expectedDistance = importedBounds.getSize(new THREE.Vector3()).z * 2;
       expect(camera.position.toArray()).toEqual([0, 0, expectedDistance]);
       expect(camera.up.toArray()).toEqual([0, 1, 0]);
       const direction = camera.getWorldDirection(new THREE.Vector3());
@@ -192,5 +287,12 @@ describe('ViewControls', () => {
       if (previousElectronAPI === undefined) delete window.electronAPI;
       else window.electronAPI = previousElectronAPI;
     }
+  });
+
+  it('uses the viewer area as the flight-control bounds', () => {
+    useStore.setState({ controlMode: 'flight' });
+    render(<ViewControls zoomRequest={{ value: 180 }} setZoom={vi.fn()} />);
+
+    expect(viewMocks.flyControlsDomElement).toBe(viewerArea);
   });
 });

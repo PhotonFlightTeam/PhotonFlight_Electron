@@ -52,6 +52,9 @@ describe('MeasureTool', () => {
     expect(screen.getByText('5.00')).toBeInTheDocument();
 
     fireEvent.keyDown(canvas, { key: 'd' });
+    expect(useStore.getState().measures).toEqual([0, 0, 0, 3, 4, 0]);
+
+    fireEvent.keyDown(canvas, { key: 'x' });
     expect(useStore.getState().measures).toEqual([0, 0, 0]);
     expect(screen.queryByTestId('measure-line')).not.toBeInTheDocument();
   });

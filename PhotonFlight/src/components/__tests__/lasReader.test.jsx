@@ -81,7 +81,11 @@ describe('LasViewer', () => {
       listPlugins: vi.fn().mockResolvedValue([]),
       onPluginsChanged: vi.fn(() => vi.fn()),
     };
-    useStore.setState({ colors: new Float32Array([1, 0, 0]), positions: new Float32Array([0, 0, 0]) });
+    useStore.setState({
+      colors: new Float32Array([1, 0, 0]),
+      positions: new Float32Array([0, 0, 0]),
+      activeNavItem: null,
+    });
   });
 
   afterEach(() => {
@@ -116,6 +120,30 @@ describe('LasViewer', () => {
     fireEvent.click(screen.getByRole('option', { name: 'Height' }));
     expect(screen.getByTestId('point-cloud')).toHaveAttribute('data-active', 'height');
     expect(useStore.getState().colors).toBeNull();
+  });
+
+  it('stores the active navigation item and opens the empty navigation sidebar', () => {
+    render(<LasViewer fileUrl="initial.laz" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Navigation' }));
+    expect(useStore.getState().activeNavItem).toBe('navigation');
+    expect(screen.getByRole('complementary', { name: 'Navigation' })).toHaveTextContent('NAVIGATION');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close navigation panel' }));
+    expect(useStore.getState().activeNavItem).toBeNull();
+    expect(screen.queryByRole('complementary', { name: 'Navigation' })).not.toBeInTheDocument();
+  });
+
+  it('stores and toggles the Plugins navigation selection', () => {
+    render(<LasViewer fileUrl="initial.laz" />);
+    const pluginsButton = screen.getByRole('button', { name: 'Plugins' });
+
+    fireEvent.click(pluginsButton);
+    expect(useStore.getState().activeNavItem).toBe('plugins');
+    expect(pluginsButton).toHaveClass('active');
+
+    fireEvent.click(pluginsButton);
+    expect(useStore.getState().activeNavItem).toBeNull();
   });
 
   it('subscribes to file events and unregisters listeners on unmount', () => {

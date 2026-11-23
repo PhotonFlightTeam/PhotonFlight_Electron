@@ -67,8 +67,8 @@ export default function PinTool({ pointsRef, activeTool, fileUrl }) {
         if (activeTool !== 'Pin') return; // Ensure tool is active
         if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
 
-        // Clear all pinpoints when 'd' is pressed
-        if (event.key.toLowerCase() === 'd') {
+        // Clear all pinpoints when 'x' is pressed
+        if (event.key.toLowerCase() === 'x') {
             setPinPoints([]);
             useStore.setState({ pinpoints: [] });
         }
