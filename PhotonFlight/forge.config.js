@@ -5,7 +5,7 @@ const path = require('node:path');
 module.exports = {
   packagerConfig: {
     asar: true,
-    extraResource: ['src/backend/dist/run', path.join(__dirname, 'proto/application')],
+    extraResource: ['src/backend/dist/run', path.join(__dirname, 'proto/application'), 'convert.py'],
   },
   rebuildConfig: {},
   makers: [

@@ -53,6 +53,10 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
     if (id) setSelectedPluginId(id);
   };
 
+  const loadDataSetCall = async (filePath) => {
+    await window.electronAPI.core.loadDataSet(filePath)
+  }
+
   useEffect(() => {
     if (!window.electronAPI) return;
 
@@ -72,7 +76,7 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
           bytes,
         });
         useStore.setState({ colors: null, positions: null, measures: null, pinpoints: null });
-        await window.electronAPI.core.loadDataSet(filePath)
+        loadDataSetCall(filePath)
       }
     });
     // Export a .las file from the viewer. Writes it to disk. TODO: Need to support .laz export, but the LASzip encoder is a pain to compile for Node. Maybe later. 

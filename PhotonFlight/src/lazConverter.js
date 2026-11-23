@@ -6,7 +6,7 @@ import path from 'node:path';
 export function lazConverterOptions({ appPath, resourcesPath, isPackaged, cacheRoot, env = process.env }) {
   const script = isPackaged
     ? path.join(resourcesPath, 'convert.py')
-    : path.join(appPath, '..', 'LasEditor', 'convert.py');
+    : path.join(appPath, 'convert.py');
   const executable = process.platform === 'win32' ? ['Scripts', 'python.exe'] : ['bin', 'python'];
   const venvPython = ['venv', '.venv']
     .map((directory) => path.join(appPath, 'src', 'backend', directory, ...executable))
