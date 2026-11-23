@@ -33,7 +33,11 @@ const VIEW_KEYS = {
 export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
     const { camera, gl } = useThree();
     // Done during render (not in an effect) so it lands before <OrbitControls> is constructed.
-    if (!camera.up.equals(WORLD_UP)) camera.up.copy(WORLD_UP);
+    const upInitialized = useRef(false);
+    if (!upInitialized.current) {
+        camera.up.copy(WORLD_UP);
+        upInitialized.current = true;
+    }
     const controlsRef = useRef();
     const isUpdatingFromSlider = useRef(false);
     const [axis, setAxis] = useState(null);
