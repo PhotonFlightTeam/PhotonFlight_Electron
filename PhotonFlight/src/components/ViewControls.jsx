@@ -5,8 +5,11 @@ import * as THREE from 'three';
 import useStore from '../useStore';
 import ViewCube from './ViewCube';
 
+// The point cloud is Z-up (Z = elevation). OrbitControls orbits around camera.up and
+// reads it once when it is created, so the camera must be Z-up before that happens.
 const WORLD_UP = new THREE.Vector3(0, 0, 1);
 
+// Directions from the target to the camera for each named view (OnShape convention).
 export const VIEWS = {
     top: new THREE.Vector3(0, 0, 1),
     bottom: new THREE.Vector3(0, 0, -1),
@@ -16,16 +19,28 @@ export const VIEWS = {
     left: new THREE.Vector3(-1, 0, 0),
 };
 
+// Keyboard / sidebar keys for each named view. Space is "Reset view".
+const VIEW_KEYS = {
+    t: VIEWS.top,
+    b: VIEWS.bottom,
+    f: VIEWS.front,
+    v: VIEWS.back,
+    l: VIEWS.left,
+    r: VIEWS.right,
+    ' ': VIEWS.top,
+};
+
 export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
     const { camera, gl } = useThree();
+    // Done during render (not in an effect) so it lands before <OrbitControls> is constructed.
     if (!camera.up.equals(WORLD_UP)) camera.up.copy(WORLD_UP);
     const controlsRef = useRef();
     const isUpdatingFromSlider = useRef(false);
     const [axis, setAxis] = useState(null);
-    const [controls, setControls] = useState('position');
+    const controls = useStore((state) => state.controlMode);
+    const setControlMode = useStore((state) => state.setControlMode);
     const bounds = useStore((state) => state.bounds);
-    const boundsDiagonal = bounds?.getSize(new THREE.Vector3());
-    const boundsLength = boundsDiagonal?.length() ?? 0;
+    const boundsLength = bounds?.getSize(new THREE.Vector3()).length() ?? 0;
     const boundsAtFileChange = useRef(bounds);
     const cameraResetPending = useRef(false);
     const maxDist = boundsLength > 0 ? Math.max(boundsLength * 3, 1) : 1000;
@@ -49,10 +64,10 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
             }
 
             console.log('Control mode changed:', controlMode);
-            setControls(controlMode);
+            setControlMode(controlMode);
             void electronAPI.setControlMode(controlMode);
         });
-    }, [maxDist, setZoom]);
+    }, [maxDist, setZoom, setControlMode]);
 
     useEffect(() => {
         boundsAtFileChange.current = bounds;
@@ -72,16 +87,20 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
     const zoomToSpeed = (z) => (maxDist / 5) + (((maxZoom - Math.max(minZoom, Math.min(z, maxZoom))) / (maxZoom - minZoom)) * ((maxDist / 100) - (maxDist / 5)));
     const zoomToRollSpeed = (z) => 4 + (((maxZoom - Math.max(minZoom, Math.min(z, maxZoom))) / (maxZoom - minZoom)) * (0.1 - 4));
 
+    // Distance at which the whole cloud fits on screen.
     const fitDistance = () => {
         if (boundsLength <= 0) return Math.max(camera.position.length(), 1);
         const halfFov = THREE.MathUtils.degToRad((camera.fov ?? 60) / 2);
         const distance = (boundsLength / 2 / Math.sin(halfFov)) * 1.1;
         return Math.min(Math.max(distance, minDist), maxDist);
     };
-    
+
+    // Moves the camera to look at the origin from `direction`. Shared by the view cube,
+    // the view keys, the navigation sidebar and the reset after a new file loads.
     const applyView = (direction) => {
         const dir = direction.clone().normalize();
-
+        // Looking straight down/up makes "up" parallel to the view. Nudge it slightly so
+        // north (+Y) stays at the top of the screen and OrbitControls has a valid angle.
         if (Math.abs(dir.z) > 0.9999) dir.set(0, -Math.sign(dir.z) * 1e-3, Math.sign(dir.z)).normalize();
 
         const distance = fitDistance();
@@ -138,16 +157,20 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
         }
     }, [zoomRequest, camera, setSpeed, setRollSpeed]);
 
-
-
     useEffect(() => {
         const canvas = gl.domElement;
         if (!canvas) return;
         canvas.tabIndex = 0;
         const focus = () => canvas.focus();
         const capturePointer = (event) => canvas.setPointerCapture(event.pointerId);
-        
-        const applyView = (direction) => applyViewRef.current(direction);
+
+        // Returns true if `key` was a view key (T/B/F/V/L/R/Space) and the view was applied.
+        const applyNamedView = (key) => {
+            const direction = VIEW_KEYS[key.toLowerCase()];
+            if (!direction) return false;
+            applyViewRef.current(direction);
+            return true;
+        };
 
         // Function to shift the camera position based on a given vector
         const shift = (pos) => {
@@ -164,21 +187,47 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
             controlsRef.current.target.z += dir[2];
         };
 
+        const panCamera = (direction) => {
+            const distance = boundsLength > 0 ? Math.max(boundsLength / 25, 0.1) : 1;
+            const forward = camera.getWorldDirection(new THREE.Vector3()).normalize();
+            const cameraRotation = camera.getWorldQuaternion(new THREE.Quaternion());
+            const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cameraRotation).normalize();
+            const vertical = new THREE.Vector3(0, 1, 0).applyQuaternion(cameraRotation).normalize();
+            const directions = {
+                'pan-forward': forward,
+                'pan-backward': forward.clone().negate(),
+                'pan-left': right.clone().negate(),
+                'pan-right': right,
+                'pan-up': vertical,
+                'pan-down': vertical.clone().negate(),
+            };
+            const movement = directions[direction];
+            if (!movement) return;
+
+            const offset = movement.multiplyScalar(distance);
+            camera.position.add(offset);
+            controlsRef.current?.target?.add(offset);
+            controlsRef.current?.update();
+        };
+
+        const rotateCamera = (direction) => {
+            const forward = camera.getWorldDirection(new THREE.Vector3()).normalize();
+            const angle = direction === 'rotate-camera-left' ? -Math.PI / 12 : Math.PI / 12;
+            camera.up.applyAxisAngle(forward, angle).normalize();
+            controlsRef.current?.update();
+        };
+
         // Keydown event handler to manage camera controls and view changes
         const handleKeyDown = (event) => {
-            if (controls === 'flight') {
-                if (event.key === ' ') applyView(VIEWS.top);
-                return;
-            };
+            if (controls === 'flight') return;
             if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
 
+            if (applyNamedView(event.key)) {
+                if (event.key === ' ') event.preventDefault();
+                return;
+            }
+
             switch (event.key.toLowerCase()) {
-                case 't': applyView(VIEWS.top); break;
-                case 'b': applyView(VIEWS.bottom); break;
-                case 'f': applyView(VIEWS.front); break;
-                case 'v': applyView(VIEWS.back); break;
-                case 'l': applyView(VIEWS.left); break;
-                case 'r': applyView(VIEWS.right); break;
                 case 'x': if (axis === null) setAxis([10,0,0]); break;
                 case 'y': if (axis === null) setAxis([0,10,0]); break;
                 case 'z': if (axis === null) setAxis([0,0,10]); break;
@@ -186,11 +235,33 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
                 case 'arrowdown': if (axis !== null) shift(axis.map(num => -1 * num)); break;
                 case 'arrowright': if (axis !== null) rotate(axis); break;
                 case 'arrowleft': if (axis !== null) rotate(axis.map(num => -1 * num)); break;
-                case ' ': 
-                    event.preventDefault(); 
-                    applyView(VIEWS.top);
-                    break;
             }
+        };
+
+        const handleNavigationAction = (event) => {
+            const key = event.detail;
+            if (key.startsWith('pan-')) {
+                panCamera(key);
+                return;
+            }
+            if (key === 'rotate-camera-left' || key === 'rotate-camera-right') {
+                rotateCamera(key);
+                return;
+            }
+
+            const axisVectors = {
+                x: [10, 0, 0],
+                y: [0, 10, 0],
+                z: [0, 0, 10],
+            };
+            if (axisVectors[key]) {
+                setAxis(axisVectors[key]);
+                return;
+            }
+
+            if (applyNamedView(key)) return;
+
+            handleKeyDown({ key, target: canvas, preventDefault: () => {} });
         };
 
         const handleKeyUp = (event) => {
@@ -205,6 +276,7 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
         canvas.addEventListener('click', focus);
         canvas.addEventListener('keydown', handleKeyDown);
         canvas.addEventListener('keyup', handleKeyUp);
+        window.addEventListener('view-control-action', handleNavigationAction);
         if (controls === 'flight') {
             canvas.addEventListener('pointerdown', capturePointer);
         }
@@ -213,28 +285,34 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
             canvas.removeEventListener('click', focus);
             canvas.removeEventListener('keydown', handleKeyDown);
             canvas.removeEventListener('keyup', handleKeyUp);
+            window.removeEventListener('view-control-action', handleNavigationAction);
             canvas.removeEventListener('pointerdown', capturePointer);
         };
-    }, [gl, camera, axis, controls, maxDist, minDist, setZoom, boundsDiagonal]);
+    }, [gl, camera, axis, controls, maxDist, minDist, setZoom, boundsLength]);
+
+    const flightControlElement = gl.domElement.closest('.viewer-area')
+        ?? gl.domElement.parentElement
+        ?? gl.domElement;
 
     return (
         <>
-        { controls === 'position' ? (
-            <OrbitControls
-                ref={controlsRef}
-                makeDefault
-                enableDamping
-                maxDistance={maxDist}
-                minDistance={minDist}
-            />
-        ) : (
-            <FlyControls
-                movementSpeed={speed}
-                rollSpeed={rollSpeed}
-                dragToLook={true}
-                autoForward={false}
-            />
-        )}
+            {controls === 'position' ? (
+                <OrbitControls
+                    ref={controlsRef}
+                    makeDefault
+                    enableDamping
+                    maxDistance={maxDist}
+                    minDistance={minDist}
+                />
+            ) : (
+                <FlyControls
+                    domElement={flightControlElement}
+                    movementSpeed={speed}
+                    rollSpeed={rollSpeed}
+                    dragToLook={true}
+                    autoForward={false}
+                />
+            )}
             <ViewCube onSelectView={applyView} />
         </>
     );
