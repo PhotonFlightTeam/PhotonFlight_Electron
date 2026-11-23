@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import useStore from '../useStore';
 import ViewCube from './ViewCube';
 
-const = WORLD_UP = new THREE.Vector3(0, 0, 1);
+const WORLD_UP = new THREE.Vector3(0, 0, 1);
 
 export const VIEWS = {
     top: new THREE.Vector3(0, 0, 1),
@@ -62,19 +62,8 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
     useEffect(() => {
         if (!fileUrl || !cameraResetPending.current || !bounds || bounds === boundsAtFileChange.current) return;
 
-        const distance = Math.max(bounds.getSize(new THREE.Vector3()).z * 2, 1);
-        camera.position.set(0, 0, distance);
-        camera.up.set(0, 1, 0);
-        camera.lookAt(0, 0, 0);
-
-        const controls = controlsRef.current;
-        if (controls?.target) {
-            controls.target.set(0, 0, 0);
-            controls.update();
-        }
-
+        applyViewRef.current(VIEWS.top);
         cameraResetPending.current = false;
-        setZoom(distToZoom(distance));
     }, [fileUrl, bounds, camera, setZoom]);
 
     // Helper math to map physical distance to a 10-200 slider value
@@ -82,6 +71,29 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
     const zoomToDist = (z) => minDist + (((maxZoom - Math.max(minZoom, Math.min(z, maxZoom))) / (maxZoom - minZoom)) * (maxDist - minDist));
     const zoomToSpeed = (z) => (maxDist / 5) + (((maxZoom - Math.max(minZoom, Math.min(z, maxZoom))) / (maxZoom - minZoom)) * ((maxDist / 100) - (maxDist / 5)));
     const zoomToRollSpeed = (z) => 4 + (((maxZoom - Math.max(minZoom, Math.min(z, maxZoom))) / (maxZoom - minZoom)) * (0.1 - 4));
+
+    const fitDistance = () => {
+        if (boundsLength <= 0) return Math.max(camera.position.length(), 1);
+        const halfFov = THREE.MathUtils.degToRad((camera.fov ?? 60) / 2);
+        const distance = (boundsLength / 2 / Math.sin(halfFov)) * 1.1;
+        return Math.min(Math.max(distance, minDist), maxDist);
+    };
+    
+    const applyView = (direction) => {
+        const dir = direction.clone().normalize();
+
+        if (Math.abs(dir.z) > 0.9999) dir.set(0, -Math.sign(dir.z) * 1e-3, Math.sign(dir.z)).normalize();
+
+        const distance = fitDistance();
+        controlsRef.current?.target?.set(0, 0, 0);
+        camera.position.copy(dir.multiplyScalar(distance));
+        camera.up.copy(WORLD_UP);
+        camera.lookAt(0, 0, 0);
+        controlsRef.current?.update();
+        if (controls === 'position') setZoom(distToZoom(distance));
+    };
+    const applyViewRef = useRef(applyView);
+    applyViewRef.current = applyView;
 
     // Sync Slider to Mouse Wheel (OrbitControls internal change)
     useEffect(() => {
@@ -134,17 +146,8 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
         canvas.tabIndex = 0;
         const focus = () => canvas.focus();
         const capturePointer = (event) => canvas.setPointerCapture(event.pointerId);
-
-        // Function to apply a specific view based on position and direction
-        const applyView = (pos, dir) => {
-            controlsRef.current?.target?.set(0, 0, 0);
-            camera.position.set(pos[0], pos[1], pos[2]);
-            camera.up.set(dir[0], dir[1], dir[2]);
-            camera.lookAt(0, 0, 0);
-            controlsRef.current?.update();
-            // Update the slider to match the new perspective's distance
-            setZoom(distToZoom(camera.position.length()));
-        };
+        
+        const applyView = (direction) => applyViewRef.current(direction);
 
         // Function to shift the camera position based on a given vector
         const shift = (pos) => {
@@ -164,22 +167,18 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
         // Keydown event handler to manage camera controls and view changes
         const handleKeyDown = (event) => {
             if (controls === 'flight') {
-                if (event.key === ' ') {
-                    camera.position.set(0, 0 , boundsDiagonal.z * 2);
-                    camera.up.set(0, 1, 0);
-                    camera.lookAt(0, 0, 0);
-                }
+                if (event.key === ' ') applyView(VIEWS.top);
                 return;
             };
             if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
 
             switch (event.key.toLowerCase()) {
-                case 't': applyView([0, 0, boundsDiagonal.z * 2], [0, 1, 0]); break;
-                case 'b': applyView([0, 0, -boundsDiagonal.z * 2], [0, -1, 0]); break;
-                case 'f': applyView([boundsDiagonal.x, 0, 0], [0, 0, 1]); break;
-                case 'v': applyView([-boundsDiagonal.x, 0, 0], [0, 0, 1]); break;
-                case 'l': applyView([0, -boundsDiagonal.y, 0], [0, 0, 1]); break;
-                case 'r': applyView([0, boundsDiagonal.y, 0], [0, 0, 1]); break;
+                case 't': applyView(VIEWS.top); break;
+                case 'b': applyView(VIEWS.bottom); break;
+                case 'f': applyView(VIEWS.front); break;
+                case 'v': applyView(VIEWS.back); break;
+                case 'l': applyView(VIEWS.left); break;
+                case 'r': applyView(VIEWS.right); break;
                 case 'x': if (axis === null) setAxis([10,0,0]); break;
                 case 'y': if (axis === null) setAxis([0,10,0]); break;
                 case 'z': if (axis === null) setAxis([0,0,10]); break;
@@ -189,7 +188,7 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
                 case 'arrowleft': if (axis !== null) rotate(axis.map(num => -1 * num)); break;
                 case ' ': 
                     event.preventDefault(); 
-                    applyView([0, 0, boundsDiagonal.z * 2], [0, 1, 0]);
+                    applyView(VIEWS.top);
                     break;
             }
         };
@@ -218,22 +217,25 @@ export default function ViewControls({ zoomRequest, setZoom, fileUrl }) {
         };
     }, [gl, camera, axis, controls, maxDist, minDist, setZoom, boundsDiagonal]);
 
-    if (controls === 'position') {
-        return <OrbitControls
-        ref={controlsRef}
-        makeDefault
-        enableDamping
-        maxDistance={maxDist}
-        minDistance={minDist}
-            />;
-    }
-
     return (
-        <FlyControls
-        movementSpeed={speed}
-        rollSpeed={rollSpeed}
-        dragToLook={true}
-        autoForward={false}
-        />
+        <>
+        { controls === 'position' ? (
+            <OrbitControls
+                ref={controlsRef}
+                makeDefault
+                enableDamping
+                maxDistance={maxDist}
+                minDistance={minDist}
+            />
+        ) : (
+            <FlyControls
+                movementSpeed={speed}
+                rollSpeed={rollSpeed}
+                dragToLook={true}
+                autoForward={false}
+            />
+        )}
+            <ViewCube onSelectView={applyView} />
+        </>
     );
 }

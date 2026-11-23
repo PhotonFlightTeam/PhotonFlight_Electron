@@ -1,4 +1,4 @@
-import { GizmoHelper, GizmoViewCube } from '@react-three/drei';
+import { GizmoHelper, GizmoViewcube } from '@react-three/drei';
 import * as THREE from 'three';
 import { usePointCloudTheme } from '../theme/pointCloudTheme';
 
@@ -22,7 +22,7 @@ export default function ViewCube({ onSelectView }) {
     const { mode } = usePointCloudTheme();
     const colors = CUBE_COLORS[mode] ?? CUBE_COLORS.dark;
     
-    const handClick = (event) => {
+    const handleClick = (event) => {
         event.stopPropogation();
         onSelectView(viewDirectionFromCubeClick(event));
         return null;
