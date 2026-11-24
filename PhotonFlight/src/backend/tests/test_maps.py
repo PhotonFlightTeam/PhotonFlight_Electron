@@ -105,7 +105,9 @@ def test_missing_or_inaccessible_map(api):
 
 def test_create_map_uses_authenticated_owner(api, sample_map):
     client, connection = api
-    connection.execute.return_value.fetchone.return_value = sample_map
+    connection.execute.return_value.fetchone.return_value = {
+        "p_row": sample_map
+    }
 
     response = client.post("/api/maps", headers=HEADERS, json={
         "name": "  Campus Survey  ", "description": "North parking lot",
@@ -116,11 +118,52 @@ def test_create_map_uses_authenticated_owner(api, sample_map):
     assert response.json()["map_id"] == 12
     assert response.json()["created_at"].startswith("2026-10-22T14:30:00")
     query, params = connection.execute.call_args.args
-    assert "maps" in str(query)
+    assert "CALL public.create_map" in str(query)
     assert params == (
-        "Campus Survey", "North parking lot", None, 36.12, -97.07, USER_ID
+        USER_ID, "Campus Survey", "North parking lot", None, 36.12, -97.07
     )
     connection.transaction.assert_called_once()
+
+
+def test_replace_map_uses_update_procedure(api, sample_map):
+    client, connection = api
+    existing_result = Mock()
+    existing_result.fetchone.return_value = sample_map
+    procedure_result = Mock()
+    procedure_result.fetchone.return_value = {"p_row": sample_map}
+    connection.execute.side_effect = [existing_result, procedure_result]
+
+    response = client.put("/api/maps/12", headers=HEADERS, json={
+        "name": "Updated Map",
+        "description": "Updated description",
+    })
+
+    assert response.status_code == 200
+    procedure_query, procedure_params = connection.execute.call_args_list[1].args
+    assert "CALL public.update_map" in str(procedure_query)
+    assert procedure_params == (
+        USER_ID,
+        12,
+        "Updated Map",
+        "Updated description",
+        None,
+        None,
+        None,
+    )
+
+
+def test_delete_map_uses_delete_procedure(api, sample_map):
+    client, connection = api
+    existing_result = Mock()
+    existing_result.fetchone.return_value = sample_map
+    connection.execute.side_effect = [existing_result]
+
+    response = client.delete("/api/maps/12", headers=HEADERS)
+
+    assert response.status_code == 204
+    procedure_query, procedure_params = connection.execute.call_args.args
+    assert "CALL public.delete_map" in str(procedure_query)
+    assert procedure_params == (USER_ID, 12)
 
 
 @pytest.mark.parametrize("payload", [

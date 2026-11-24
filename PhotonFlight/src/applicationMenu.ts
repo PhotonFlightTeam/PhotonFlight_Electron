@@ -12,8 +12,12 @@ function getWindow(baseWindow: BaseWindow | undefined): BrowserWindow | null {
 }
 
 export function setupApplicationMenu(
+  
   themeMode: 'dark' | 'light' = 'dark',
-  { databaseMenuEnabled = false, prepareImport }: ApplicationMenuOptions = {},
+  {
+  databaseMenuEnabled = false, prepareImport }: ApplicationMenuOptions = {},
+
+  controlMode: 'position' | 'flight' = 'position',
 ): void {
   const template: MenuItemConstructorOptions[] = [
     {
@@ -124,11 +128,6 @@ export function setupApplicationMenu(
           label: 'Theme',
           submenu: [
             {
-              label: `${themeMode[0].toUpperCase()}${themeMode.slice(1)} mode`,
-              enabled: false,
-            },
-            { type: 'separator' },
-            {
               label: 'Dark',
               type: 'radio',
               checked: themeMode === 'dark',
@@ -143,6 +142,27 @@ export function setupApplicationMenu(
               click: (_menuItem: MenuItem, baseWindow?: BaseWindow) => {
                 getWindow(baseWindow)?.webContents.send('theme-mode-changed', 'light');
                // setAllPointCloudColors([0, 0.4, 1])
+              },
+            },
+          ],
+        },
+        {
+          label: 'Controls',
+          submenu: [
+            {
+              label: 'Flight',
+              type: 'radio',
+              checked: controlMode === 'flight',
+              click: (_menuItem: MenuItem, baseWindow?: BaseWindow) => {
+                getWindow(baseWindow)?.webContents.send('control-mode-changed', 'flight');
+              },
+            },
+            {
+              label: 'Position',
+              type: 'radio',
+              checked: controlMode === 'position',
+              click: (_menuItem: MenuItem, baseWindow?: BaseWindow) => {
+                getWindow(baseWindow)?.webContents.send('control-mode-changed', 'position');
               },
             },
           ],

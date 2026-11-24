@@ -13,8 +13,10 @@ import Select from '@mui/material/Select';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import ExtensionIcon from '@mui/icons-material/Extension';
+import NearMeIcon from '@mui/icons-material/NearMe';
 import ViewControls from './ViewControls';
 import { usePlugins, PluginSidebar, PluginDetails } from './PluginLibrary';
+import Navigation from './Navigation';
 import ToolBar from './ToolBar';
 import PinTool from './Pin';
 import { usePointCloudTheme } from '../theme/pointCloudTheme';
@@ -30,12 +32,13 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
   const [zoom, setZoom] = useState(180);
   const [zoomRequest, setZoomRequest] = useState({ value: 180 });
   const [activeTool, setActiveTool] = useState('Select');
+  const activeNavItem = useStore((state) => state.activeNavItem);
+  const setActiveNavItem = useStore((state) => state.setActiveNavItem);
   const pointsRef = useRef(); // The <points> object. MeasureTool and PinTool raycast against it. Empty until mount, like my will to debug this 
   const fileSourceRef = useRef(initialFileUrl); // The export listener was born on the first render and never left. Reminds me of how she was "reborn" and then left me immediately.
   fileSourceRef.current = fileSource;
 
   // Plugin library 
-  const [libraryOpen, setLibraryOpen] = useState(false);
   const [selectedPluginId, setSelectedPluginId] = useState(null);
   const pluginManager = usePlugins();
   
@@ -93,7 +96,9 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
     });
     
     // Plugins > Library menu opens side panel
-    const offPluginLibrary = window.electronAPI.onOpenPluginLibrary(() => setLibraryOpen(true));
+    const offPluginLibrary = window.electronAPI.onOpenPluginLibrary(() => {
+      useStore.getState().setActiveNavItem('plugins');
+    });
 
     return () => {
       offImport();
@@ -114,32 +119,44 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
   };
 
     return (
-    <div className="las-viewer" data-theme={mode}>1
+    <div
+      className="las-viewer"
+      data-theme={mode}
+      data-sidebar-open={activeNavItem === 'navigation' || activeNavItem === 'plugins'}>1
       <DatabaseBrowser
         currentFile={currentFile}
         onLoadFile={loadDatabaseFile}
       />
 
       <nav className="activity-bar">
+        <Tooltip title="Navigation" placement="right">
+          <IconButton
+            className={activeNavItem === 'navigation' ? 'active' : ''}
+            onClick={() => setActiveNavItem(activeNavItem === 'navigation' ? null : 'navigation')}
+            aria-label="Navigation">
+            <NearMeIcon />
+          </IconButton>
+        </Tooltip>
         <Tooltip title="Plugins" placement="right">
           <IconButton
-            className={libraryOpen ? 'active' : ''}
-            onClick={() => setLibraryOpen(open => !open)}
+            className={activeNavItem === 'plugins' ? 'active' : ''}
+            onClick={() => setActiveNavItem(activeNavItem === 'plugins' ? null : 'plugins')}
             aria-label="Plugins">
             <ExtensionIcon />
           </IconButton>
         </Tooltip>
       </nav>
 
-      {libraryOpen && (
+      {activeNavItem === 'plugins' && (
         <PluginSidebar
           plugins={pluginManager.plugins}
           selectedId={selectedPluginId}
           onSelect={setSelectedPluginId}
-          onClose={() => setLibraryOpen(false)}
+          onClose={() => setActiveNavItem(null)}
           onImport={handleImportPlugin}
           error={pluginManager.error} />
       )}
+      {activeNavItem === 'navigation' && <Navigation />}
 
       <div className="viewer-area">
         <Canvas 
@@ -151,50 +168,12 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
           <PointCloudViewer pointsRef={pointsRef} fileUrl={fileSource} active={active} />
           <MeasureTool pointsRef={pointsRef} activeTool={activeTool} fileUrl={fileSource} />
           <PinTool pointsRef={pointsRef} activeTool={activeTool} fileUrl={fileSource} />
-          <ViewControls zoomRequest={zoomRequest} setZoom={setZoom} />
+          <ViewControls zoomRequest={zoomRequest} setZoom={setZoom} fileUrl={fileSource} />
         </Canvas>
 
         <div className="tool-bar">
           <ToolBar activeTool={activeTool} setActiveTool={setActiveTool} />
         </div>
-
-        <Box className="view-color-box">
-          <FormControl fullWidth>
-            <InputLabel id="View Color Selection">View Color</InputLabel>
-            
-            <Select
-              labelId="View Label"
-              id="View Selection"
-              value={active}
-              label="View Color"
-              onChange={handleChange}>
-
-              <MenuItem value={'base'}>Base</MenuItem>
-              <MenuItem value={'height'}>Height</MenuItem>
-              <MenuItem value={'slope'}>Slope</MenuItem>
-            </Select>
-          </FormControl>
-        </Box>
-
-        <Box className="zoom-box">
-          <div 
-            onClick={() => handleZoomRequest(Math.min(zoom + 10, 200))}
-            className="zoom-in">
-            +
-          </div>
-          <Slider
-            orientation="vertical"
-            value={zoom}
-            min={10}
-            max={200}
-            onChange={(event, newValue) => handleZoomRequest(newValue)}
-            aria-label="Camera Zoom" />
-          <div 
-            onClick={() => handleZoomRequest(Math.max(zoom - 10, 10))}
-            className="zoom-out">
-            -
-          </div>
-        </Box>
 
         {selectedPlugin && (
           <PluginDetails
@@ -205,6 +184,44 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
             error={pluginManager.error} />
         )}
       </div>
+
+      <Box className="view-color-box">
+        <FormControl fullWidth>
+          <InputLabel id="View Color Selection">View Color</InputLabel>
+
+          <Select
+            labelId="View Label"
+            id="View Selection"
+            value={active}
+            label="View Color"
+            onChange={handleChange}>
+
+            <MenuItem value={'base'}>Base</MenuItem>
+            <MenuItem value={'height'}>Height</MenuItem>
+            <MenuItem value={'slope'}>Slope</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
+
+      <Box className="zoom-box">
+        <div
+          onClick={() => handleZoomRequest(Math.min(zoom + 10, 200))}
+          className="zoom-in">
+          +
+        </div>
+        <Slider
+          orientation="vertical"
+          value={zoom}
+          min={10}
+          max={200}
+          onChange={(event, newValue) => handleZoomRequest(newValue)}
+          aria-label="Camera Zoom" />
+        <div
+          onClick={() => handleZoomRequest(Math.max(zoom - 10, 10))}
+          className="zoom-out">
+          -
+        </div>
+      </Box>
     </div>
   );
 }

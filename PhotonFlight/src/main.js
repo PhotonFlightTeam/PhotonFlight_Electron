@@ -61,6 +61,7 @@ const refreshApplicationMenu = () => setupApplicationMenu(themeMode, {
   databaseMenuEnabled,
   prepareImport: (filePath) => convertLasToLaz(filePath, lazConverter),
 });
+let controlMode = 'position';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -119,7 +120,7 @@ const startPythonBackend = () => {
     .find((directory) => existsSync(path.join(directory, executableDirectory, executableName)))
     ?? path.join(backendDirectory, 'venv');
     backendPath = path.join(virtualEnvironment, executableDirectory, executableName);
-    args = [ '-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', '8000'];
+    args = [ '-m', 'uvicorn', '-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', '8000'];
   } else {
     
     const backendExecutable = process.platform === 'win32' ? 'main.exe' : 'main';
@@ -250,17 +251,24 @@ app.whenReady().then(() => {
   ipcMain.handle('theme:set-mode', (_event, mode) => {
     if (mode !== 'dark' && mode !== 'light') return themeMode;
     themeMode = mode;
-    refreshApplicationMenu();
+    refreshApplicationMenu(, controlMode);
     return themeMode;
   });
   ipcMain.on('theme-mode-changed', (_event, mode) => {
     if (mode !== 'dark' && mode !== 'light') return;
     themeMode = mode;
-    refreshApplicationMenu();
+    refreshApplicationMenu(, controlMode);
   });
-  
-  refreshApplicationMenu();
-  
+
+  ipcMain.handle('controls:set-mode', (_event, mode) => {
+    if (mode !== 'flight' && mode !== 'position') return controlMode;
+    controlMode = mode;
+    setupApplicationMenu(themeMode, databaseMenuEnabled, controlMode);
+    return controlMode;
+  });
+
+  setupApplicationMenu(themeMode, databaseMenuEnabled, controlMode);
+
   createWindow();
   startPythonBackend(); // Start the Python backend when the app is ready
   if (!started) coreSupervisor.start().catch((error) => {

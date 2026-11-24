@@ -1,4 +1,6 @@
 .las-viewer {
+	--activity-bar-width: 48px;
+	--navigation-sidebar-width: 280px;
 	width: 100vw;
 	height: 100vh;
 	display: flex;
@@ -60,7 +62,7 @@
 }
 
 .activity-bar {
-	width: 48px;
+	width: var(--activity-bar-width);
 	flex-shrink: 0;
 	display: flex;
 	flex-direction: column;
@@ -129,7 +131,7 @@
 	min-width: 150px;
 	position: absolute;
 	top: 20px;
-	left: 20px;
+	left: calc(var(--activity-bar-width) + 20px);
 	z-index: 10;
 	background: #2b2b2b;
 	border: 1px solid #4a4a4a;
@@ -137,6 +139,10 @@
 	padding: 6px;
 	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.32);
 	backdrop-filter: blur(14px);
+}
+
+.las-viewer[data-sidebar-open='true'] .view-color-box {
+	left: calc(var(--activity-bar-width) + var(--navigation-sidebar-width) + 20px);
 }
 
 .las-viewer[data-theme='light'] .view-color-box,
@@ -154,7 +160,7 @@
 .zoom-box {
 	position: absolute;
 	top: 120px;
-	left: 20px;
+	left: calc(var(--activity-bar-width) + 20px);
 	height: 250px;
 	z-index: 10;
 	background: linear-gradient(145deg, rgba(16, 36, 58, 0.92), rgba(8, 23, 38, 0.88));
@@ -166,6 +172,10 @@
 	align-items: center;
 	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.32);
 	backdrop-filter: blur(14px);
+}
+
+.las-viewer[data-sidebar-open='true'] .zoom-box {
+	left: calc(var(--activity-bar-width) + var(--navigation-sidebar-width) + 20px);
 }
 
 .zoom-in {

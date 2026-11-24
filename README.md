@@ -129,10 +129,10 @@ There are also default positions created for each axis clicking the indicated ch
 ## Keymaps: 
 
 When in measurement mode: 
-- d -deletes the last line created
+- x - deletes the last line created
 
 When in pin mode: 
-- d -deletes all of the currently displayed pins 
+- x - deletes all of the currently displayed pins 
 
 
 

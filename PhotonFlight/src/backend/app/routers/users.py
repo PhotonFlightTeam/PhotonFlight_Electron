@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from psycopg import Connection
+from psycopg.errors import RaiseException
 
 from ..auth import get_current_user_id, get_current_user_sub
 from ..database import get_connection
@@ -31,13 +32,22 @@ def create_user(
     clerk_user_id: str = Depends(get_current_user_sub),
     connection: Connection = Depends(get_connection),
 ):
-    connection.execute(
-        "INSERT INTO public.app_user (clerk_user_id, name, email) "
-        "VALUES (%s, %s, %s) "
-        "ON CONFLICT (clerk_user_id) DO UPDATE SET name = EXCLUDED.name, email = EXCLUDED.email "
-        "RETURNING user_id, name, email;",
-        (clerk_user_id, payload.name, payload.email),
-    ).fetchone()
+    try:
+        with connection.transaction():
+            row = connection.execute(
+                "CALL public.create_or_update_user(%s, %s, %s, NULL)",
+                (clerk_user_id, payload.name, payload.email),
+            ).fetchone()
+    except RaiseException as error:
+        if error.sqlstate == "22023":
+            raise HTTPException(
+                422,
+                str(error).split("CONTEXT:")[0].strip(),
+            ) from None
+        raise
+
+    if row is not None and "p_row" in row:
+        row = row["p_row"]
 
     return {"clerk_user_id": clerk_user_id, "name": payload.name, "email": payload.email}
 

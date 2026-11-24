@@ -41,20 +41,20 @@ def api(monkeypatch):
 
 def test_upload_stores_file_bytes_and_metadata(api):
     client, connection = api
-    map_result = Mock()
-    map_result.fetchone.return_value = {"map_id": 12}
     insert_result = Mock()
     insert_result.fetchone.return_value = {
-        "lidar_id": 45,
-        "map_id": 12,
-        "uploaded_by": USER_ID,
-        "file_location": "site.las",
-        "file_format": "LAS",
-        "uploaded_at": "2026-11-07T12:00:00",
-        "file_size_bytes": len(LAS_BYTES),
-        "sha256": sha256(LAS_BYTES).hexdigest(),
+        "p_row": {
+            "lidar_id": 45,
+            "map_id": 12,
+            "uploaded_by": USER_ID,
+            "file_location": "site.las",
+            "file_format": "LAS",
+            "uploaded_at": "2026-11-07T12:00:00",
+            "file_size_bytes": len(LAS_BYTES),
+            "sha256": sha256(LAS_BYTES).hexdigest(),
+        }
     }
-    connection.execute.side_effect = [map_result, insert_result]
+    connection.execute.return_value = insert_result
 
     response = client.post(
         "/api/lidar/upload",
@@ -66,21 +66,16 @@ def test_upload_stores_file_bytes_and_metadata(api):
     assert response.status_code == 201
     assert response.json()["lidar_id"] == 45
     assert response.json()["file_location"] == "site.las"
-    map_query, map_params = connection.execute.call_args_list[0].args
-    insert_query, insert_params = connection.execute.call_args_list[1].args
-    assert "created_by" in str(map_query)
-    assert map_params == (12, USER_ID)
-    assert "file_data" in str(insert_query)
-    assert "content_type" in str(insert_query)
+    insert_query, insert_params = connection.execute.call_args.args
+    assert "CALL public.create_lidar_upload" in str(insert_query)
     assert insert_params == (
-        12,
         USER_ID,
-        len(LAS_BYTES),
-        LAS_BYTES,
+        12,
         "site.las",
-        sha256(LAS_BYTES).hexdigest(),
         "LAS",
+        LAS_BYTES,
         "application/vnd.las",
+        sha256(LAS_BYTES).hexdigest(),
     )
 
 
@@ -101,7 +96,6 @@ def test_upload_rejects_maps_not_owned_by_current_user(api):
 
 def test_upload_rejects_non_las_content(api):
     client, connection = api
-    connection.execute.return_value.fetchone.return_value = {"map_id": 12}
 
     response = client.post(
         "/api/lidar/upload",
@@ -112,7 +106,7 @@ def test_upload_rejects_non_las_content(api):
 
     assert response.status_code == 415
     assert response.json() == {"detail": "File does not have a LAS/LAZ header."}
-    assert connection.execute.call_count == 1
+    connection.execute.assert_not_called()
 
 
 def test_list_lidar_returns_metadata_without_file_data(api):
