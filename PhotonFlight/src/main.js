@@ -242,7 +242,7 @@ app.whenReady().then(() => {
     if (typeof enabled !== 'boolean') return;
     
     databaseMenuEnabled = enabled;
-    refreshApplicationMenu();
+    setupApplicationMenu();
   });
   
   registerPluginHandlers();
@@ -251,13 +251,13 @@ app.whenReady().then(() => {
   ipcMain.handle('theme:set-mode', (_event, mode) => {
     if (mode !== 'dark' && mode !== 'light') return themeMode;
     themeMode = mode;
-    refreshApplicationMenu(, controlMode);
+    setupApplicationMenu(themeMode,databaseMenuEnabled,controlMode);
     return themeMode;
   });
   ipcMain.on('theme-mode-changed', (_event, mode) => {
     if (mode !== 'dark' && mode !== 'light') return;
     themeMode = mode;
-    refreshApplicationMenu(, controlMode);
+    setupApplicationMenu(themeMode, databaseMenuEnabled, controlMode);
   });
 
   ipcMain.handle('controls:set-mode', (_event, mode) => {
@@ -289,7 +289,7 @@ app.whenReady().then(() => {
   app.quit();
 });
 
-//console.log(grpcStatus)
+
 
 // Quit when all windows are closed, except on macOS.
 app.on('window-all-closed', () => {
