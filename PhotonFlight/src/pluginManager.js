@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import os from 'node:os';
 
 // Installed plugins live in %APPDATA%/<app>/plugins/<plugin-id>/
 const pluginsDir = () => path.join(app.getPath('userData'), 'plugins');
@@ -95,6 +96,34 @@ export async function listPlugins() {
     return plugins;
 }
 
+// The Java core keeps its own plugins (jars) under PHOTON_CORE_STATE_DIR, or ~/.photonflight/core by default
+function resolveCorePluginsDir() {
+    const directory = process.env.PHOTON_CORE_STATE_DIR;
+    const stateDir = !directory || !directory.trim()
+        ? path.join(os.homedir(), '.photonflight', 'core')
+        : directory;
+    return path.join(stateDir, 'plugins');
+}
+
+// Jar names look like "my-plugin-1.2.3.jar"; the trailing -<digits> part is treated as the version
+export async function listCorePlugins() {
+    let entries;
+    try {
+        entries = await fs.readdir(resolveCorePluginsDir(), { withFileTypes: true });
+    } catch {
+        return []; // The core hasn't created its plugins dir yet
+    }
+
+    const state = await readState();
+    return entries
+        .filter(entry => entry.isFile() && entry.name.toLowerCase().endsWith('.jar'))
+        .map((entry) => {
+            const id = entry.name.slice(0, -'.jar'.length);
+            const [, name, version] = id.match(/^(.+?)-(\d[\w.]*)$/) ?? [null, id, ''];
+            return { id, name, version, enabled: state[id]?.enabled ?? true, active: false };
+        });
+}
+
 // Opens a foldere picker, validates plugin.json (and icon), and copies the folder into the plugins dir.
 // Returns the new plugin's id, or null if the user cancelled (Also, TS is BROKEN and I don't know what to do :D)
 
@@ -131,6 +160,7 @@ export async function setPluginEnabled(id, enabled) {
 
 export function registerPluginHandlers() {
     ipcMain.handle('plugins:list', () => listPlugins());
+    ipcMain.handle('plugins:list-core', () => listCorePlugins());
     ipcMain.handle('plugins:import', (event) => importPlugin(BrowserWindow.fromWebContents(event.sender)));
     ipcMain.handle('plugins:remove', (_event, id) => removePlugin(id));
     ipcMain.handle('plugins:set-enabled', (_event, id, enabled) => setPluginEnabled(id, enabled));

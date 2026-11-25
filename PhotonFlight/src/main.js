@@ -15,7 +15,7 @@ import { CoreConnection } from './grpc/coreConnection';
  
 
 const start_plugin_server = async () => {
-  await coreSupervisor.startProcess()
+  await coreSupervisor.start()
 }
 
 const coreSupervisor = new CoreSupervisor({
