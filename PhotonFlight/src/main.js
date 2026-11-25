@@ -14,10 +14,6 @@ import { coreProtoRoot } from './grpc/client';
 import { CoreConnection } from './grpc/coreConnection';
  
 
-const start_plugin_server = async () => {
-  await coreSupervisor.start()
-}
-
 const coreSupervisor = new CoreSupervisor({
   launch: coreLaunchOptions({ appPath: app.getAppPath(), resourcesPath: process.resourcesPath, isPackaged: app.isPackaged }),
 });
@@ -26,8 +22,6 @@ const coreConnection = new CoreConnection({
   supervisor: coreSupervisor,
   protoRoot: coreProtoRoot({ appPath: app.getAppPath(), resourcesPath: process.resourcesPath, isPackaged: app.isPackaged }),
 });
-
-start_plugin_server()
 
 coreConnection.on('status', (status) => {
   if (status.state === 'ready') {
@@ -60,7 +54,7 @@ const lazConverter = lazConverterOptions({
 const refreshApplicationMenu = () => setupApplicationMenu(themeMode, {
   databaseMenuEnabled,
   prepareImport: (filePath) => convertLasToLaz(filePath, lazConverter),
-});
+}, controlMode);
 let controlMode = 'position';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -120,7 +114,7 @@ const startPythonBackend = () => {
     .find((directory) => existsSync(path.join(directory, executableDirectory, executableName)))
     ?? path.join(backendDirectory, 'venv');
     backendPath = path.join(virtualEnvironment, executableDirectory, executableName);
-    args = [ '-m', 'uvicorn', '-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', '8000'];
+    args = ['-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', '8000'];
   } else {
     
     const backendExecutable = process.platform === 'win32' ? 'main.exe' : 'main';
@@ -183,7 +177,7 @@ const createWindow = () => {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 app.whenReady().then(() => {
-  if (started || quitInProgress || quitAfterCoreStops) return;
+  if (!clerk.isPrimaryInstance || started || quitInProgress || quitAfterCoreStops) return;
   const assertCoreSender = (event) => {
     const window = BrowserWindow.fromWebContents(event.sender);
     if (!window || event.senderFrame !== event.sender.mainFrame) {
@@ -242,7 +236,7 @@ app.whenReady().then(() => {
     if (typeof enabled !== 'boolean') return;
     
     databaseMenuEnabled = enabled;
-    setupApplicationMenu();
+    refreshApplicationMenu();
   });
   
   registerPluginHandlers();
@@ -251,23 +245,23 @@ app.whenReady().then(() => {
   ipcMain.handle('theme:set-mode', (_event, mode) => {
     if (mode !== 'dark' && mode !== 'light') return themeMode;
     themeMode = mode;
-    setupApplicationMenu(themeMode,databaseMenuEnabled,controlMode);
+    refreshApplicationMenu();
     return themeMode;
   });
   ipcMain.on('theme-mode-changed', (_event, mode) => {
     if (mode !== 'dark' && mode !== 'light') return;
     themeMode = mode;
-    setupApplicationMenu(themeMode, databaseMenuEnabled, controlMode);
+    refreshApplicationMenu();
   });
 
   ipcMain.handle('controls:set-mode', (_event, mode) => {
     if (mode !== 'flight' && mode !== 'position') return controlMode;
     controlMode = mode;
-    setupApplicationMenu(themeMode, databaseMenuEnabled, controlMode);
+    refreshApplicationMenu();
     return controlMode;
   });
 
-  setupApplicationMenu(themeMode, databaseMenuEnabled, controlMode);
+  refreshApplicationMenu();
 
   createWindow();
   startPythonBackend(); // Start the Python backend when the app is ready

@@ -53,7 +53,7 @@ export class CoreSupervisor extends EventEmitter {
     this.stopTimeoutMs = stopTimeoutMs;
     this.killTimeoutMs = killTimeoutMs;
     this.child = null;
-    this.closed = null;
+    this.exited = null;
     this.queue = Promise.resolve();
     this.disposed = false;
     this.status = { state: 'stopped', pid: null, host: null, port: null, generation: 0, exitCode: null, signal: null, error: null };
@@ -110,14 +110,19 @@ export class CoreSupervisor extends EventEmitter {
       });
       this.child = child;
       let processError = null;
-      this.closed = new Promise((resolve) => {
-        child.once('close', (exitCode, signal) => {
+      let settled = false;
+      this.exited = new Promise((resolve) => {
+        const finish = (exitCode, signal) => {
+          if (settled) return;
+          settled = true;
           const expected = this.status.state === 'stopping';
           this.child = null;
           this.update({ state: expected && !processError ? 'stopped' : 'failed', pid: null, host: null, port: null,
             exitCode, signal, error: processError?.message || (expected ? null : 'PhotonCore exited unexpectedly.') });
           resolve();
-        });
+        };
+        child.once('exit', finish);
+        child.once('close', finish);
       });
       child.on('error', (error) => {
         processError = error;
@@ -134,17 +139,17 @@ export class CoreSupervisor extends EventEmitter {
       return this.getStatus();
     } catch (error) {
       // A failed spawn can emit close after error; drain it before another launch.
-      if (this.child) await this.closed;
+      if (this.child) await this.exited;
       this.update({ state: 'failed', pid: null, host: null, port: null, error: error.message });
       throw error;
     }
   }
 
-  async waitForClose(timeoutMs) {
+  async waitForExit(timeoutMs) {
     let timer;
     try {
       return await Promise.race([
-        this.closed.then(() => true),
+        this.exited.then(() => true),
         new Promise((resolve) => { timer = setTimeout(() => resolve(false), timeoutMs); }),
       ]);
     } finally {
@@ -156,11 +161,39 @@ export class CoreSupervisor extends EventEmitter {
     if (!this.child) return this.getStatus();
     const child = this.child;
     this.update({ state: 'stopping' });
+    if (process.platform === 'win32' && Number.isInteger(child.pid)) {
+      let forceTerminationError = null;
+      try {
+        const taskkill = this.spawnProcess('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], {
+          shell: false,
+          windowsHide: true,
+          stdio: 'ignore',
+        });
+        await new Promise((resolve, reject) => {
+          taskkill.once('error', reject);
+          taskkill.once('close', (exitCode) => {
+            if (exitCode === 0) resolve();
+            else reject(new Error(`taskkill exited with code ${exitCode}.`));
+          });
+        });
+      } catch (error) {
+        forceTerminationError = error;
+        if (this.child === child) child.kill('SIGKILL');
+      }
+      if (!await this.waitForExit(this.killTimeoutMs)) {
+        const detail = forceTerminationError ? ` ${forceTerminationError.message}` : '';
+        const error = `PhotonCore did not exit after forced termination.${detail}`;
+        this.update({ state: 'failed', error });
+        throw new Error(error);
+      }
+      return this.getStatus();
+    }
+
     // Until Shutdown RPC exists, using OS termination
     child.kill('SIGTERM');
-    if (!await this.waitForClose(this.stopTimeoutMs)) {
+    if (!await this.waitForExit(this.stopTimeoutMs)) {
       child.kill('SIGKILL');
-      if (!await this.waitForClose(this.killTimeoutMs)) {
+      if (!await this.waitForExit(this.killTimeoutMs)) {
         const error = 'PhotonCore did not exit after forced termination.';
         this.update({ state: 'failed', error });
         throw new Error(error);

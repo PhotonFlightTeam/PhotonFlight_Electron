@@ -122,7 +122,7 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
     <div
       className="las-viewer"
       data-theme={mode}
-      data-sidebar-open={activeNavItem === 'navigation' || activeNavItem === 'plugins'}>1
+      data-sidebar-open={activeNavItem === 'navigation' || activeNavItem === 'plugins'}>
       <DatabaseBrowser
         currentFile={currentFile}
         onLoadFile={loadDatabaseFile}
