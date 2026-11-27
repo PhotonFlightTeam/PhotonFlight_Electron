@@ -26,7 +26,7 @@ export function usePlugins() {
 
     const refresh = useCallback(async () => {
         if (!window.electronAPI) return;
-        setPlugins(await window.electronAPI.listPlugins());
+        setPlugins(await window.electronAPI.listCorePlugins());
     }, []);
 
     // Load once, then reload whenever main says plugins changed (Plugins > Import...)
@@ -52,7 +52,6 @@ export function usePlugins() {
         plugins,
         error,
         importPlugin: () => run(() => window.electronAPI.importPlugin()),
-        removePlugin: (id) => run(() => window.electronAPI.removePlugin(id)),
         setPluginEnabled: (id, enabled) => run(() => window.electronAPI.setPluginEnabled(id, enabled)),
     };
 }
@@ -132,11 +131,7 @@ export function PluginSidebar({ plugins, selectedId, onSelect, onClose, onImport
     );
 }
 
-export function PluginDetails({ plugin, onClose, onToggle, onRemove, error }) {
-    const handleRemove = () => {
-        if (window.confirm(`Uninstall "${plugin.name}"?`)) onRemove(plugin.id);
-    };
-
+export function PluginDetails({ plugin, onClose, onToggle, error }) {
     return (
         <section className="plugin-details">
             <IconButton className="plugin-details-close" onClick={onClose} aria-label="Close plugin details">
@@ -160,24 +155,12 @@ export function PluginDetails({ plugin, onClose, onToggle, onRemove, error }) {
                             onClick={() => onToggle(plugin.id, !plugin.enabled)}>
                             {plugin.enabled ? 'Disable' : 'Enable'}
                         </Button>
-                        <Button size="small" variant="outlined" color="error" onClick={handleRemove}>
-                            Uninstall
-                        </Button>
                     </div>
                 </div>
             </div>
 
             <h3>Description</h3>
             <p>{plugin.description || 'No description provided.'}</p>
-
-            <h3>Documentation</h3>
-            {plugin.documentation.length > 0 ? (
-                <ul>
-                    {plugin.documentation.map((line, i) => <li key={i}>{line}</li>)}
-                </ul>
-            ) : (
-                <p>No documentation provided.</p>
-            )}
         </section>
     );
 }

@@ -78,8 +78,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
 },
 
 // Plugin management (check pluginManager.js for details)
-listPlugins: () => ipcRenderer.invoke('plugins:list'), 
 listCorePlugins: () => ipcRenderer.invoke('plugins:list-core'),
-importPlugin: () => ipcRenderer.invoke('plugins:import'),
-removePlugin:(id) => ipcRenderer.invoke('plugins:remove', id),
+importPlugin: () => ipcRenderer.invoke('plugins:import-core'),
 setPluginEnabled: (id, enabled) => ipcRenderer.invoke('plugins:set-enabled', id, enabled)});

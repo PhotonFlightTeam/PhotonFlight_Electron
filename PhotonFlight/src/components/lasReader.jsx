@@ -52,8 +52,7 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
   };
 
   const handleImportPlugin = async () => {
-    const id = await pluginManager.importPlugin();
-    if (id) setSelectedPluginId(id);
+    await pluginManager.importPlugin();
   };
 
   const loadDataSetCall = async (filePath) => {
@@ -180,7 +179,6 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
             plugin={selectedPlugin}
             onClose={() => setSelectedPluginId(null)}
             onToggle={pluginManager.setPluginEnabled}
-            onRemove={pluginManager.removePlugin}
             error={pluginManager.error} />
         )}
       </div>

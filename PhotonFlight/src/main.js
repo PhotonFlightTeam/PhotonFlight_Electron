@@ -9,7 +9,6 @@ import { storage } from '@clerk/electron/storage';
 import { CoreSupervisor, coreLaunchOptions } from './coreSupervisor';
 import { spawn } from 'node:child_process';
 import { setupApplicationMenu } from './applicationMenu';
-import { lazConverterOptions, convertLasToLaz } from './lazConverter';
 import { coreProtoRoot } from './grpc/client';
 import { CoreConnection } from './grpc/coreConnection';
  
@@ -46,14 +45,8 @@ coreSupervisor.on('log', ({ stream, text }) => {
 let themeMode = 'dark';
 let databaseMenuEnabled = false;
 
-const lazConverter = lazConverterOptions({
-  appPath: app.getAppPath(), resourcesPath: process.resourcesPath, isPackaged: app.isPackaged,
-  cacheRoot: app.getPath('userData'),
-});
-
 const refreshApplicationMenu = () => setupApplicationMenu(themeMode, {
   databaseMenuEnabled,
-  prepareImport: (filePath) => convertLasToLaz(filePath, lazConverter),
 }, controlMode);
 let controlMode = 'position';
 

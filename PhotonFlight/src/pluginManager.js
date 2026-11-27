@@ -1,35 +1,25 @@
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { BrowserWindow, dialog, ipcMain } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 
-// Installed plugins live in %APPDATA%/<app>/plugins/<plugin-id>/
-const pluginsDir = () => path.join(app.getPath('userData'), 'plugins');
-const statePath = () => path.join(pluginsDir(), 'plugins-state.json');
-
-// Plugin ids become folder names, so only allow safe charactres (blocks "../")
-
-const VALID_ID = /^[a-z0-9][a-z0-9._-]*$/i
-
-const ICON_TYPES = {
-    '.png': 'image/png',
-    '.jpg': 'image/jpeg',
-    '.jpeg': 'image/jpeg',
-    '.svg': 'image/svg+xml',
-};
-
-function pluginPath(id) {
-    if (typeof id !== 'string' || !VALID_ID.test(id)) {
-        throw new Error(`Invalid plugin id: ${id}`);
-    }
-    return path.join(pluginsDir(), id);
+// Plugin JARs live under PHOTON_CORE_STATE_DIR, or ~/.photonflight/core by default —
+// matching exactly where the JVM's PluginLoader looks.
+function pluginsDir() {
+    const directory = process.env.PHOTON_CORE_STATE_DIR;
+    const stateDir = !directory || !directory.trim()
+        ? path.join(os.homedir(), '.photonflight', 'core')
+        : directory;
+    return path.join(stateDir, 'plugins');
 }
+
+const statePath = () => path.join(pluginsDir(), 'plugins-state.json');
 
 async function readState() {
     try {
         return JSON.parse(await fs.readFile(statePath(), 'utf8'));
-    } catch { 
-        return{};
+    } catch {
+        return {};
     }
 }
 
@@ -38,78 +28,11 @@ async function writeState(state) {
     await fs.writeFile(statePath(), JSON.stringify(state, null, 2));
 }
 
-async function readManifest(dir) {
-    let manifest;
-    try {
-        manifest = JSON.parse(await fs.readFile(path.join(dir, 'plugin.json'), 'utf8'));
-    } catch { 
-        throw new Error('Folder does not contain a valid plugin.json');
-    }
-    if (!manifest.id || !VALID_ID.test(manifest.id)) {
-        throw new Error('plugin.json needs an "id" (letters, numbers, . _ - only)');
-    }
-    if (typeof manifest.name !== 'string' || !manifest.name) { // Name is used in the UI, so it must be a non-empty string. I will explode you if you use an empty string.
-        throw new Error('plugin.json needs a "name"');
-    }
-    return manifest;
-}
-
-// The renderer can't load file:// paths from the dev server, so send icons as data URLs
-async function loadIcon(dir, iconFile) {
-    if (!iconFile) return null;
-    const type = ICON_TYPES[path.extname(iconFile).toLowerCase()];
-    if (!type) return null;
-    try {
-        const data = await fs.readFile(path.join(dir, iconFile));
-        return `data:${type};base64,${data.toString('base64')}`;
-    } catch {
-        return null;
-    }
-}
-
-export async function listPlugins() {
-    await fs.mkdir(pluginsDir(), { recursive: true });
-    const state = await readState();
-    const entries = await fs.readdir(pluginsDir(), { withFileTypes: true });
-
-    const plugins = [];
-    for (const entry of entries) {
-        if (!entry.isDirectory()) continue;
-        const dir = path.join(pluginsDir(), entry.name);
-        try {
-            const manifest = await readManifest(dir);
-            plugins.push({
-                id: entry.name,
-                name: manifest.name,
-                author: typeof manifest.author === 'string' ? manifest.author : 'Unknown',
-                version: typeof manifest.version === 'string' ? manifest.version : '',
-                description: typeof manifest.description === 'string' ? manifest.description : '',
-                documentation: Array.isArray(manifest.documentation)
-                    ? manifest.documentation.filter(line => typeof line === 'string')
-                    : [],
-                icon: await loadIcon(dir, manifest.icon),
-                enabled: state[entry.name]?.enabled ?? true,
-            });
-        } catch (err) { console.error(`Skipping plugin in ${dir}:`, err.message);
-        }
-    }
-    return plugins;
-}
-
-// The Java core keeps its own plugins (jars) under PHOTON_CORE_STATE_DIR, or ~/.photonflight/core by default
-function resolveCorePluginsDir() {
-    const directory = process.env.PHOTON_CORE_STATE_DIR;
-    const stateDir = !directory || !directory.trim()
-        ? path.join(os.homedir(), '.photonflight', 'core')
-        : directory;
-    return path.join(stateDir, 'plugins');
-}
-
 // Jar names look like "my-plugin-1.2.3.jar"; the trailing -<digits> part is treated as the version
 export async function listCorePlugins() {
     let entries;
     try {
-        entries = await fs.readdir(resolveCorePluginsDir(), { withFileTypes: true });
+        entries = await fs.readdir(pluginsDir(), { withFileTypes: true });
     } catch {
         return []; // The core hasn't created its plugins dir yet
     }
@@ -124,44 +47,39 @@ export async function listCorePlugins() {
         });
 }
 
-// Opens a foldere picker, validates plugin.json (and icon), and copies the folder into the plugins dir.
-// Returns the new plugin's id, or null if the user cancelled (Also, TS is BROKEN and I don't know what to do :D)
-
+// Opens a file picker for .jar files and copies them into the plugins directory.
+// Returns the copied filename(s), or null if the user canceled.
 export async function importPlugin(browserWindow) {
     const { canceled, filePaths } = await dialog.showOpenDialog(browserWindow, {
-        title: 'Select a plugin folder (must contain plugin.json)',
-        properties: ['openDirectory'],
+        title: 'Select one or more core plugin JARs',
+        properties: ['openFile', 'multiSelections'],
+        filters: [{ name: 'Plugin JARs', extensions: ['jar'] }],
     });
     if (canceled || filePaths.length === 0) return null;
 
-    const sourceDir = filePaths[0];
-    const manifest = await readManifest(sourceDir);
-    await fs.mkdir(pluginsDir(), { recursive: true });
-    const target = pluginPath(manifest.id);
-    if (path.resolve(sourceDir) === target) throw new Error('That plugin is already installed from this folder.');
-    await fs.rm(target, { recursive: true, force: true }); // Clears files a newer version removed
-    await fs.cp(sourceDir, target, { recursive: true });
-    return manifest.id;
-}
-
-export async function removePlugin(id) {
-    await fs.rm(pluginPath(id), { recursive: true, force: true });
-    const state = await readState();
-    delete state[id];
-    await writeState(state);
+    const dest = pluginsDir();
+    await fs.mkdir(dest, { recursive: true });
+    const names = [];
+    for (const src of filePaths) {
+        const name = path.basename(src);
+        const target = path.join(dest, name);
+        if (path.resolve(src) !== target) {
+            await fs.copyFile(src, target);
+        }
+        names.push(name);
+    }
+    return names;
 }
 
 export async function setPluginEnabled(id, enabled) {
-    pluginPath(id); // Validates the ID
+    if (typeof id !== 'string' || !id) throw new Error(`Invalid plugin id: ${id}`);
     const state = await readState();
     state[id] = { ...state[id], enabled: !!enabled };
     await writeState(state);
 }
 
 export function registerPluginHandlers() {
-    ipcMain.handle('plugins:list', () => listPlugins());
     ipcMain.handle('plugins:list-core', () => listCorePlugins());
-    ipcMain.handle('plugins:import', (event) => importPlugin(BrowserWindow.fromWebContents(event.sender)));
-    ipcMain.handle('plugins:remove', (_event, id) => removePlugin(id));
+    ipcMain.handle('plugins:import-core', (event) => importPlugin(BrowserWindow.fromWebContents(event.sender)));
     ipcMain.handle('plugins:set-enabled', (_event, id, enabled) => setPluginEnabled(id, enabled));
 }
