@@ -9,3 +9,4 @@ export type { Operation__Output as Operation } from '../../generated/photonfligh
 export type { OperationError__Output as OperationError } from '../../generated/photonflight/application/v1/OperationError';
 export type { Annotation__Output as Annotation } from '../../generated/photonflight/application/v1/Annotation';
 export type { Plugin__Output as Plugin } from '../../generated/photonflight/application/v1/Plugin';
+export type { Processor__Output as Processor } from '../../generated/photonflight/application/v1/Processor';

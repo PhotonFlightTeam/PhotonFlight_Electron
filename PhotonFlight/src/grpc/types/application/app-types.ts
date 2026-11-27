@@ -12,6 +12,8 @@ export type { GetDatasetRequest } from '../../generated/photonflight/application
 export type { GetAnnotationsRequest } from '../../generated/photonflight/application/v1/GetAnnotationsRequest';
 export type { StreamPointsRequest } from '../../generated/photonflight/application/v1/StreamPointsRequest';
 export type { Command } from '../../generated/photonflight/application/v1/Command';
+export type { CancelOperationRequest } from '../../generated/photonflight/application/v1/CancelOperationRequest';
+export type { ListProcessorsRequest } from '../../generated/photonflight/application/v1/ListProcessorsRequest';
 export type { CoreStatus__Output as CoreStatus } from '../../generated/photonflight/application/v1/CoreStatus';
 export type { LoadDatasetResponse__Output as LoadDatasetResponse } from '../../generated/photonflight/application/v1/LoadDatasetResponse';
 export type { UnloadDatasetResponse__Output as UnloadDatasetResponse } from '../../generated/photonflight/application/v1/UnloadDatasetResponse';
@@ -21,4 +23,5 @@ export type { PointBatch__Output as PointBatch } from '../../generated/photonfli
 export type { Dataset__Output as Dataset } from '../../generated/photonflight/application/v1/Dataset';
 export type { Operation__Output as Operation } from '../../generated/photonflight/application/v1/Operation';
 export type { CommandResult__Output as CommandResult } from '../../generated/photonflight/application/v1/CommandResult';
+export type { ListProcessorsResponse__Output as ListProcessorsResponse } from '../../generated/photonflight/application/v1/ListProcessorsResponse';
 export type { Event__Output as Event } from '../../generated/photonflight/application/v1/Event';
