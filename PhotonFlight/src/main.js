@@ -203,6 +203,135 @@ app.whenReady().then(() => {
   handleCore('core:get-operation', isRequest, (client, request) => client.getOperation(request));
   handleCore('core:get-dataset', isRequest, (client, request) => client.getDataSet(request));
   handleCore('core:get-annotations', isRequest, (client, request) => client.getAnnotations(request));
+
+  let nextStreamId = 0;
+  let cancelActivePointStream = null;
+
+  ipcMain.handle('core:cancel-point-stream', (event) => {
+    assertCoreSender(event);
+    cancelActivePointStream?.();
+  });
+
+  ipcMain.handle('core:load-dataset-stream', async (event, filePath) => {
+    assertCoreSender(event);
+    if (!isId(filePath)) throw new Error('Invalid argument for core:load-dataset-stream.');
+
+    cancelActivePointStream?.();
+    const streamId = ++nextStreamId;
+    let cancelled = false;
+    let eventStream = null;
+    let pointStream = null;
+
+    const cancel = () => {
+      if (cancelled) return;
+      cancelled = true;
+      if (cancelActivePointStream === cancel) cancelActivePointStream = null;
+      eventStream?.cancel();
+      pointStream?.cancel();
+    };
+    cancelActivePointStream = cancel;
+
+    const sendToRenderer = (channel, payload) => {
+      if (!cancelled && !event.sender.isDestroyed()) {
+        event.sender.send(channel, payload);
+      }
+    };
+
+    try {
+      const client = await coreConnection.getClients();
+      if (cancelled) return null;
+
+      eventStream = client.subscribeEvents(false);
+      const { operation } = await client.loadDataSet(filePath);
+      if (!operation?.id) throw new Error('PhotonCore did not return a load operation ID.');
+
+      const dataset = await new Promise((resolve, reject) => {
+        let settled = false;
+        const finish = (fn, value) => {
+          if (settled) return;
+          settled = true;
+          eventStream?.cancel();
+          fn(value);
+        };
+
+        eventStream.on('data', (ev) => {
+          if (cancelled) {
+            finish(resolve, null);
+            return;
+          }
+          if (ev.payload === 'dataset_loaded' && ev.dataset_loaded?.operation_id === operation.id) {
+            finish(resolve, ev.dataset_loaded.dataset);
+          } else if (ev.payload === 'operation_progress' && ev.operation_progress?.operation?.id === operation.id) {
+            const op = ev.operation_progress.operation;
+            if (op.state === 'OPERATION_STATE_FAILED' || op.state === 'OPERATION_STATE_CANCELLED') {
+              finish(reject, new Error(op.error?.message || op.message || 'Dataset import failed'));
+            }
+          }
+        });
+
+        eventStream.on('error', (err) => {
+          if (cancelled) finish(resolve, null);
+          else finish(reject, err);
+        });
+
+        eventStream.on('end', () => {
+          if (!settled) finish(reject, new Error('Event stream ended before dataset finished loading.'));
+        });
+      });
+
+      if (cancelled || !dataset) return null;
+
+      sendToRenderer('core:point-stream-start', { streamId, dataset });
+
+      if (Number(dataset.point_count) === 0) {
+        sendToRenderer('core:point-stream-end', { streamId });
+        return { streamId, dataset };
+      }
+
+      await new Promise((resolve, reject) => {
+        pointStream = client.streamPoints({
+          dataset_id: dataset.id,
+          revision: dataset.revision,
+          preferred_batch_points: 16384,
+        });
+
+        pointStream.on('data', (batch) => {
+          if (cancelled || event.sender.isDestroyed()) {
+            cancel();
+            resolve();
+            return;
+          }
+          sendToRenderer('core:point-batch', {
+            streamId,
+            pointOffset: Number(batch.point_offset),
+            pointCount: batch.point_count,
+            positions: batch.positions_f32_le,
+            colors: batch.colors_rgb_u8?.length ? batch.colors_rgb_u8 : null,
+          });
+        });
+
+        pointStream.on('end', () => {
+          if (!cancelled) sendToRenderer('core:point-stream-end', { streamId });
+          resolve();
+        });
+
+        pointStream.on('error', (err) => {
+          if (cancelled) {
+            resolve();
+          } else {
+            sendToRenderer('core:point-stream-error', { streamId, message: err.message });
+            reject(err);
+          }
+        });
+      });
+
+      if (cancelActivePointStream === cancel) cancelActivePointStream = null;
+      return { streamId, dataset };
+    } catch (error) {
+      cancel();
+      throw error;
+    }
+  });
   
   // Setup File System IPC handlers for Read/Write Processes
   ipcMain.handle('read-file', async (event, filePath) => {

@@ -34,11 +34,75 @@ export default function PointCloudViewer({ fileUrl, active, pointsRef }) {
       };
     }
 
+    if (fileUrl && typeof fileUrl === 'object' && !(fileUrl instanceof ArrayBuffer) && fileUrl.type === 'grpc') {
+      setLoading(true);
+      setPointData(null);
+      setError(null);
+
+      let activeStreamId = null;
+      let positions = null;
+      let posBytes = null;
+      let streamFinished = false;
+
+      const offStart = window.electronAPI.core.onPointStreamStart(({ streamId, dataset }) => {
+        if (cancelled) return;
+        activeStreamId = streamId;
+        const count = Number(dataset.point_count);
+        positions = new Float32Array(count * 3);
+        posBytes = new Uint8Array(positions.buffer);
+      });
+
+      const offBatch = window.electronAPI.core.onPointBatch(({ streamId, pointOffset, positions: batchPositions }) => {
+        if (cancelled || streamId !== activeStreamId || !posBytes || !batchPositions) return;
+        const bytes = batchPositions instanceof Uint8Array ? batchPositions : new Uint8Array(batchPositions);
+        posBytes.set(bytes, pointOffset * 12);
+      });
+
+      const offEnd = window.electronAPI.core.onPointStreamEnd(({ streamId }) => {
+        if (cancelled || streamId !== activeStreamId) return;
+        streamFinished = true;
+        setPointData({
+          attributes: {
+            POSITION: { value: positions },
+          },
+        });
+        setError(null);
+        setLoading(false);
+      });
+
+      const offError = window.electronAPI.core.onPointStreamError(({ streamId, message }) => {
+        if (cancelled || streamId !== activeStreamId) return;
+        streamFinished = true;
+        console.error('Failed to stream point cloud from PhotonCore:', message);
+        setError(message || 'Error streaming point cloud from PhotonCore.');
+        setLoading(false);
+      });
+
+      window.electronAPI.core.loadDatasetStream(fileUrl.filePath).catch((err) => {
+        if (cancelled || streamFinished) return;
+        streamFinished = true;
+        console.error('Failed to load dataset over gRPC:', err);
+        setError(err?.message || 'Error loading LiDAR file via PhotonCore.');
+        setLoading(false);
+      });
+
+      return () => {
+        cancelled = true;
+        offStart();
+        offBatch();
+        offEnd();
+        offError();
+        if (!streamFinished) {
+          window.electronAPI.core.cancelPointStream?.().catch(() => {});
+        }
+      };
+    }
+
     async function parseLasFile() {
       try {
         setLoading(true);
 	      setPointData(null);
-	      //Load and Parse binary .las/.laz file
+	      //Load and Parse binary .las/.laz file (used for DatabaseBrowser ArrayBuffer / URL sources)
         const source = fileUrl instanceof ArrayBuffer ? fileUrl.slice(0) : fileUrl;
         const data = await load(source, LASLoader);
         if (cancelled) return;

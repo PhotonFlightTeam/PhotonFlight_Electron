@@ -14,11 +14,33 @@ contextBridge.exposeInMainWorld('electronAPI', {
     stop: () => ipcRenderer.invoke('core:stop'),
     restart: () => ipcRenderer.invoke('core:restart'),
     loadDataSet: (filePath) => ipcRenderer.invoke('core:load-dataset', filePath),
+    loadDatasetStream: (filePath) => ipcRenderer.invoke('core:load-dataset-stream', filePath),
+    cancelPointStream: () => ipcRenderer.invoke('core:cancel-point-stream'),
     unloadDataset: (datasetId) => ipcRenderer.invoke('core:unload-dataset', datasetId),
     executeCommand: (command) => ipcRenderer.invoke('core:execute-command', command),
     getOperation: (request) => ipcRenderer.invoke('core:get-operation', request),
     getDataSet: (request) => ipcRenderer.invoke('core:get-dataset', request),
     getAnnotations: (request) => ipcRenderer.invoke('core:get-annotations', request),
+    onPointStreamStart: (callback) => {
+      const handler = (_event, data) => callback(data);
+      ipcRenderer.on('core:point-stream-start', handler);
+      return () => ipcRenderer.removeListener('core:point-stream-start', handler);
+    },
+    onPointBatch: (callback) => {
+      const handler = (_event, batch) => callback(batch);
+      ipcRenderer.on('core:point-batch', handler);
+      return () => ipcRenderer.removeListener('core:point-batch', handler);
+    },
+    onPointStreamEnd: (callback) => {
+      const handler = (_event, data) => callback(data);
+      ipcRenderer.on('core:point-stream-end', handler);
+      return () => ipcRenderer.removeListener('core:point-stream-end', handler);
+    },
+    onPointStreamError: (callback) => {
+      const handler = (_event, err) => callback(err);
+      ipcRenderer.on('core:point-stream-error', handler);
+      return () => ipcRenderer.removeListener('core:point-stream-error', handler);
+    },
     onStatusChanged: (callback) => {
       const handler = (_event, status) => callback(status);
       ipcRenderer.on('core:status-changed', handler);

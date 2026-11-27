@@ -55,38 +55,33 @@ export default function LasViewer({ fileUrl: initialFileUrl }) {
     await pluginManager.importPlugin();
   };
 
-  const loadDataSetCall = async (filePath) => {
-    await window.electronAPI.core.loadDataSet(filePath)
-  }
-
   useEffect(() => {
     if (!window.electronAPI) return;
 
-    const offImport = window.electronAPI.onFileImported(async (filePath) => { // Import a .las file and load it into the viewer
-      const buffer = await window.electronAPI.readFile(filePath);
-      if (buffer) {
-        // The IPC result is already a Uint8Array, so wrapping or slicing it again would copy the
-        // whole file. The viewer and export both copy before parsing, so one shared buffer is safe.
-        const received = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
-        const arrayBuffer = received.byteOffset === 0 && received.byteLength === received.buffer.byteLength
-          ? received.buffer
-          : received.buffer.slice(received.byteOffset, received.byteOffset + received.byteLength);
-        const bytes = new Uint8Array(arrayBuffer); // a view over the same memory, not a copy
-        setFileSource(arrayBuffer);
-        setCurrentFile({
-          name: filePath.split(/[\\/]/).pop(),
-          bytes,
-        });
-        useStore.setState({ colors: null, positions: null, measures: null, pinpoints: null });
-        loadDataSetCall(filePath)
-      }
+    const offImport = window.electronAPI.onFileImported((filePath) => {
+      setFileSource({ type: 'grpc', filePath });
+      setCurrentFile({
+        name: filePath.split(/[\\/]/).pop(),
+        path: filePath,
+      });
+      useStore.setState({ colors: null, positions: null, measures: null, pinpoints: null });
     });
     // Export a .las file from the viewer. Writes it to disk. TODO: Need to support .laz export, but the LASzip encoder is a pain to compile for Node. Maybe later. 
     // For now, just export as .las. The viewer will convert the point cloud to 32-bit coords and write it as uncompressed LAS.
     const offExport = window.electronAPI.onFileExported(async (filePath) => {
       try {
-        if (!fileSourceRef.current) throw new Error('Load a point cloud before exporting.');
-        const bytes = await exportPointCloud(fileSourceRef.current, filePath);
+        const current = fileSourceRef.current;
+        if (!current) throw new Error('Load a point cloud before exporting.');
+        let exportSource = current;
+        if (typeof current === 'object' && !(current instanceof ArrayBuffer) && current.type === 'grpc') {
+          const buffer = await window.electronAPI.readFile(current.filePath);
+          if (!buffer) throw new Error('Could not read source file for export.');
+          const received = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+          exportSource = received.byteOffset === 0 && received.byteLength === received.buffer.byteLength
+            ? received.buffer
+            : received.buffer.slice(received.byteOffset, received.byteOffset + received.byteLength);
+        }
+        const bytes = await exportPointCloud(exportSource, filePath);
         const saved = await window.electronAPI.saveFile(filePath, bytes);
         if (!saved) throw new Error('The file could not be written. Check the terminal for details.');
       } catch (error) {
