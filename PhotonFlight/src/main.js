@@ -12,6 +12,7 @@ import { setupApplicationMenu } from './applicationMenu';
 import { coreProtoRoot } from './grpc/client';
 import { CoreConnection } from './grpc/coreConnection';
 import { CoreEventBridge } from './grpc/coreEvents';
+import { loadDataset, streamDataset } from './datasetStreams';
  
 
 const coreSupervisor = new CoreSupervisor({
@@ -229,133 +230,62 @@ app.whenReady().then(() => {
     (client, { processorId, datasetId, expectedRevision, parameters }) =>
       client.runProcessor({ processorId, datasetId, expectedRevision, parameters }));
 
+  // One point stream at a time: starting another (or core:cancel-point-stream) aborts the active one.
+  // Every message to the renderer carries the streamId the starting call resolves with.
   let nextStreamId = 0;
-  let cancelActivePointStream = null;
+  let activePointStream = null;
 
   ipcMain.handle('core:cancel-point-stream', (event) => {
     assertCoreSender(event);
-    cancelActivePointStream?.();
+    activePointStream?.abort();
   });
 
-  ipcMain.handle('core:load-dataset-stream', async (event, filePath) => {
-    assertCoreSender(event);
-    if (!isId(filePath)) throw new Error('Invalid argument for core:load-dataset-stream.');
-
-    cancelActivePointStream?.();
+  const runPointStream = async (event, produce) => {
+    activePointStream?.abort();
+    const controller = new AbortController();
+    activePointStream = controller;
     const streamId = ++nextStreamId;
-    let cancelled = false;
-    let eventStream = null;
-    let pointStream = null;
-
-    const cancel = () => {
-      if (cancelled) return;
-      cancelled = true;
-      if (cancelActivePointStream === cancel) cancelActivePointStream = null;
-      eventStream?.cancel();
-      pointStream?.cancel();
+    const send = (channel, payload) => {
+      if (controller.signal.aborted) return;
+      // A closed window can't receive the rest, so stop pulling points from Core.
+      if (event.sender.isDestroyed()) controller.abort();
+      else event.sender.send(channel, { streamId, ...payload });
     };
-    cancelActivePointStream = cancel;
-
-    const sendToRenderer = (channel, payload) => {
-      if (!cancelled && !event.sender.isDestroyed()) {
-        event.sender.send(channel, payload);
-      }
-    };
-
     try {
       const client = await coreConnection.getClients();
-      if (cancelled) return null;
-
-      eventStream = client.subscribeEvents(false);
-      const { operation } = await client.loadDataSet(filePath);
-      if (!operation?.id) throw new Error('PhotonCore did not return a load operation ID.');
-
-      const dataset = await new Promise((resolve, reject) => {
-        let settled = false;
-        const finish = (fn, value) => {
-          if (settled) return;
-          settled = true;
-          eventStream?.cancel();
-          fn(value);
-        };
-
-        eventStream.on('data', (ev) => {
-          if (cancelled) {
-            finish(resolve, null);
-            return;
-          }
-          if (ev.payload === 'dataset_loaded' && ev.dataset_loaded?.operation_id === operation.id) {
-            finish(resolve, ev.dataset_loaded.dataset);
-          } else if (ev.payload === 'operation_progress' && ev.operation_progress?.operation?.id === operation.id) {
-            const op = ev.operation_progress.operation;
-            if (op.state === 'OPERATION_STATE_FAILED' || op.state === 'OPERATION_STATE_CANCELLED') {
-              finish(reject, new Error(op.error?.message || op.message || 'Dataset import failed'));
-            }
-          }
-        });
-
-        eventStream.on('error', (err) => {
-          if (cancelled) finish(resolve, null);
-          else finish(reject, err);
-        });
-
-        eventStream.on('end', () => {
-          if (!settled) finish(reject, new Error('Event stream ended before dataset finished loading.'));
-        });
-      });
-
-      if (cancelled || !dataset) return null;
-
-      sendToRenderer('core:point-stream-start', { streamId, dataset });
-
-      if (Number(dataset.point_count) === 0) {
-        sendToRenderer('core:point-stream-end', { streamId });
-        return { streamId, dataset };
-      }
-
-      await new Promise((resolve, reject) => {
-        pointStream = client.streamPoints({
-          dataset_id: dataset.id,
-          revision: dataset.revision,
-          preferred_batch_points: 16384,
-        });
-
-        pointStream.on('data', (batch) => {
-          if (cancelled || event.sender.isDestroyed()) {
-            cancel();
-            resolve();
-            return;
-          }
-          sendToRenderer('core:point-batch', {
-            streamId,
-            pointOffset: Number(batch.point_offset),
-            pointCount: batch.point_count,
-            positions: batch.positions_f32_le,
-            colors: batch.colors_rgb_u8?.length ? batch.colors_rgb_u8 : null,
-          });
-        });
-
-        pointStream.on('end', () => {
-          if (!cancelled) sendToRenderer('core:point-stream-end', { streamId });
-          resolve();
-        });
-
-        pointStream.on('error', (err) => {
-          if (cancelled) {
-            resolve();
-          } else {
-            sendToRenderer('core:point-stream-error', { streamId, message: err.message });
-            reject(err);
-          }
-        });
-      });
-
-      if (cancelActivePointStream === cancel) cancelActivePointStream = null;
-      return { streamId, dataset };
+      if (controller.signal.aborted) return null;
+      const dataset = await produce(client, controller.signal);
+      if (!dataset || controller.signal.aborted) return null;
+      await streamDataset({ client, dataset, send, signal: controller.signal });
+      return controller.signal.aborted ? null : { streamId, dataset };
     } catch (error) {
-      cancel();
+      if (controller.signal.aborted || error?.name === 'AbortError') return null;
       throw error;
+    } finally {
+      if (activePointStream === controller) activePointStream = null;
     }
+  };
+
+  // Imports a file into Core, then streams the loaded revision.
+  ipcMain.handle('core:load-dataset-stream', (event, filePath) => {
+    assertCoreSender(event);
+    if (!isId(filePath)) throw new Error('Invalid argument for core:load-dataset-stream.');
+    return runPointStream(event, (client, signal) => loadDataset({ client, events: coreEvents, filePath, signal }));
+  });
+
+  // Streams a revision of a dataset that Core already holds, e.g., after DatasetChanged.
+  ipcMain.handle('core:stream-dataset', (event, request) => {
+    assertCoreSender(event);
+    if (!isRequest(request) || !isId(request.datasetId) || !isRevision(request.revision)) {
+      throw new Error('Invalid argument for core:stream-dataset.');
+    }
+    return runPointStream(event, async (client) => {
+      const dataset = await client.getDataSet({ dataset_id: request.datasetId });
+      if (dataset.revision !== request.revision) {
+        throw new Error(`Dataset revision ${request.revision} is no longer current (now ${dataset.revision}).`);
+      }
+      return dataset;
+    });
   });
   
   // Setup File System IPC handlers for Read/Write Processes

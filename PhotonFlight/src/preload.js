@@ -15,6 +15,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     restart: () => ipcRenderer.invoke('core:restart'),
     loadDataSet: (filePath) => ipcRenderer.invoke('core:load-dataset', filePath),
     loadDatasetStream: (filePath) => ipcRenderer.invoke('core:load-dataset-stream', filePath),
+    // { datasetId, revision (decimal string) }; streams that revision over the point-stream events
+    streamDataset: (request) => ipcRenderer.invoke('core:stream-dataset', request),
     cancelPointStream: () => ipcRenderer.invoke('core:cancel-point-stream'),
     unloadDataset: (datasetId) => ipcRenderer.invoke('core:unload-dataset', datasetId),
     executeCommand: (command) => ipcRenderer.invoke('core:execute-command', command),
