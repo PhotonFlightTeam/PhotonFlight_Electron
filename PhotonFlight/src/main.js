@@ -11,6 +11,7 @@ import { spawn } from 'node:child_process';
 import { setupApplicationMenu } from './applicationMenu';
 import { coreProtoRoot } from './grpc/client';
 import { CoreConnection } from './grpc/coreConnection';
+import { CoreEventBridge } from './grpc/coreEvents';
  
 
 const coreSupervisor = new CoreSupervisor({
@@ -29,6 +30,14 @@ coreConnection.on('status', (status) => {
    console.error("PhotonCore is not ready!")
   }
 }); 
+
+// One long-lived SubscribeEvents stream per Core session; each (re)open starts with a snapshot.
+const coreEvents = new CoreEventBridge({ connection: coreConnection });
+coreEvents.on('event', (coreEvent) => {
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (!window.isDestroyed()) window.webContents.send('core:event', coreEvent);
+  }
+});
 
 coreSupervisor.on('status', (status) => {
   for (const window of BrowserWindow.getAllWindows()) {
@@ -67,6 +76,7 @@ app.on('before-quit', (event) => {
   event.preventDefault();
   if (quitInProgress) return;
   quitInProgress = true;
+  coreEvents.dispose();
   coreConnection.dispose();
   coreSupervisor.dispose().then(() => {
     clerk.cleanup();
@@ -203,6 +213,11 @@ app.whenReady().then(() => {
   handleCore('core:get-operation', isRequest, (client, request) => client.getOperation(request));
   handleCore('core:get-dataset', isRequest, (client, request) => client.getDataSet(request));
   handleCore('core:get-annotations', isRequest, (client, request) => client.getAnnotations(request));
+  // The renderer calls this after attaching its listener to get a snapshot, then live events.
+  ipcMain.handle('core:resync-events', (event) => {
+    assertCoreSender(event);
+    coreEvents.resync();
+  });
   handleCore('core:list-processors', () => true, (client) => client.listProcessors());
   handleCore('core:cancel-operation', isId, (client, operationId) => client.cancelOperation(operationId));
   const isRevision = (value) => typeof value === 'string' && /^\d+$/.test(value);

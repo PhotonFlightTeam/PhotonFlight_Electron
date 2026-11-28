@@ -44,6 +44,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.on('core:point-stream-error', handler);
       return () => ipcRenderer.removeListener('core:point-stream-error', handler);
     },
+    // Core events (CoreSnapshot first, then live events). Resubscribing gives a fresh snapshot,
+    // so listeners can rebuild their state from scratch. Returns an unsubscribe function.
+    subscribeEvents: (callback) => {
+      const handler = (_event, coreEvent) => callback(coreEvent);
+      ipcRenderer.on('core:event', handler);
+      ipcRenderer.invoke('core:resync-events').catch(() => {});
+      return () => ipcRenderer.removeListener('core:event', handler);
+    },
     onStatusChanged: (callback) => {
       const handler = (_event, status) => callback(status);
       ipcRenderer.on('core:status-changed', handler);
