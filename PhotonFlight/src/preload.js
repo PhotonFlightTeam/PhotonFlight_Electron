@@ -21,6 +21,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getOperation: (request) => ipcRenderer.invoke('core:get-operation', request),
     getDataSet: (request) => ipcRenderer.invoke('core:get-dataset', request),
     getAnnotations: (request) => ipcRenderer.invoke('core:get-annotations', request),
+    listProcessors: () => ipcRenderer.invoke('core:list-processors'),
+    runProcessor: (request) => ipcRenderer.invoke('core:run-processor', request),
+    cancelOperation: (operationId) => ipcRenderer.invoke('core:cancel-operation', operationId),
     onPointStreamStart: (callback) => {
       const handler = (_event, data) => callback(data);
       ipcRenderer.on('core:point-stream-start', handler);

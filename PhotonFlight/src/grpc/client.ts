@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
 import type { ProtoGrpcType } from './generated/application';
@@ -7,14 +8,13 @@ import type { PointCloudServiceClient } from './generated/photonflight/applicati
 import type { CoreStatus__Output } from './generated/photonflight/application/v1/CoreStatus';
 import type {
   LoadDatasetRequest, LoadDatasetResponse, UnloadDatasetRequest, UnloadDatasetResponse,
-  ShutdownRequest, ShutdownResponse, SubscribeEventsRequest, Command, CommandResult, Event, GetOperationRequest, Operation,
-  GetDatasetRequest,
-  GetAnnotationsRequest,
-  StreamPointsRequest
+  ShutdownRequest, ShutdownResponse, SubscribeEventsRequest, Command,
+  CommandResult, Event, GetOperationRequest, Operation,
+  GetDatasetRequest, GetAnnotationsRequest, StreamPointsRequest,
+  CancelOperationRequest, ListProcessorsRequest, ListProcessorsResponse
 } from './types/application/app-types';
 import type { Dataset } from './types/common/common-types';
 import { GetAnnotationsResponse } from './generated/photonflight/application/v1/GetAnnotationsResponse';
-import { StreamPointsRequest__Output } from './generated/photonflight/application/v1/StreamPointsRequest';
 
 export const SUPPORTED_CORE_API_VERSION = '1';
 
@@ -87,6 +87,22 @@ export function createCoreRpcClient({ host, port, protoRoot }: { host: string; p
     unary<GetDatasetRequest, Dataset>(points, "GetDataset", dataset)
   const getAnnotations = (annotations: GetAnnotationsRequest) => 
     unary<GetAnnotationsRequest, GetAnnotationsResponse>(points, "GetAnnotations", annotations)
+  const runProcessor = ({ processorId, datasetId, expectedRevision, parameters = {} }: {
+    processorId: string; datasetId: string; expectedRevision: string; parameters?: Record<string, string>;
+  }) => executeCommand({
+    request_id: randomUUID(),
+    payload: 'run_processor',
+    run_processor: {
+      processor_id: processorId,
+      dataset_id: datasetId,
+      expected_revision: expectedRevision,
+      parameters,
+    },
+  });
+  const cancelOperation = (operationId: string) =>
+    unary<CancelOperationRequest, Operation>(control, 'CancelOperation', { operation_id: operationId });
+  const listProcessors = () =>
+    unary<ListProcessorsRequest, ListProcessorsResponse>(control, 'ListProcessors', {});
   // StreamPoints is a server stream, so callers get the stream rather than a Promise.
   const streamPoints = (pointreq: StreamPointsRequest) => points.streamPoints(pointreq)
   // Closing the shared channel cancels in-flight RPCs on both service clients.
@@ -97,7 +113,8 @@ export function createCoreRpcClient({ host, port, protoRoot }: { host: string; p
 
   return {
     control, points, waitForReady, getStatus, shutdown, loadDataSet, unloadDataset, executeCommand,
-    subscribeEvents, close, getOperation, getDataSet, getAnnotations, streamPoints
+    subscribeEvents, close, getOperation, getDataSet, getAnnotations, streamPoints,
+    runProcessor, cancelOperation, listProcessors,
   };
 }
 

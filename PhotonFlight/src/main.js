@@ -203,6 +203,16 @@ app.whenReady().then(() => {
   handleCore('core:get-operation', isRequest, (client, request) => client.getOperation(request));
   handleCore('core:get-dataset', isRequest, (client, request) => client.getDataSet(request));
   handleCore('core:get-annotations', isRequest, (client, request) => client.getAnnotations(request));
+  handleCore('core:list-processors', () => true, (client) => client.listProcessors());
+  handleCore('core:cancel-operation', isId, (client, operationId) => client.cancelOperation(operationId));
+  const isRevision = (value) => typeof value === 'string' && /^\d+$/.test(value);
+  const isParameters = (value) => value === undefined
+    || (isRequest(value) && Object.values(value).every((entry) => typeof entry === 'string'));
+  handleCore('core:run-processor',
+    (request) => isRequest(request) && isId(request.processorId) && isId(request.datasetId)
+      && isRevision(request.expectedRevision) && isParameters(request.parameters),
+    (client, { processorId, datasetId, expectedRevision, parameters }) =>
+      client.runProcessor({ processorId, datasetId, expectedRevision, parameters }));
 
   let nextStreamId = 0;
   let cancelActivePointStream = null;
