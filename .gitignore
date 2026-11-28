@@ -117,3 +117,6 @@ venv/
 PhotonFlight/forge.config.js
 PhotonFlight/vite.main.config.mjs
 /PhotonFlight/proto
+
+# dist folder
+/PhotonFlight/dist/
