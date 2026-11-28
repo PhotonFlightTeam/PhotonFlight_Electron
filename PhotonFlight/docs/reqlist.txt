@@ -1,0 +1,308 @@
+PhotonFlight Functional and Non-Functional Requirements
+
+Status meanings:
+M = Implemented or materially met by the current project
+P = Planned for a realistic future release
+
+FUNCTIONAL REQUIREMENTS
+
+FR-1 [M] The system shall run as a desktop application using Electron.
+FR-2 [M] The system shall allow users to open LAS and LAZ point-cloud files from the local device.
+FR-3 [M] The system shall parse and render imported LiDAR point clouds in a Three.js WebGL viewport.
+FR-4 [M] The system shall display an empty viewport and loading/error feedback appropriate to the file state.
+FR-5 [M] The system shall provide base, height, and slope point-cloud color modes.
+FR-6 [M] The system shall support worker-based calculation for slope visualization where Web Workers are available.
+FR-7 [M] The system shall center and scale point-cloud geometry so that the loaded cloud is visible in the viewport.
+FR-8 [M] The system shall display a reference grid beneath the loaded point cloud.
+FR-9 [M] The system shall provide camera zoom controls and vertical movement controls.
+FR-10 [M] The system shall provide flight and position camera control modes.
+FR-11 [M] The system shall provide commands for top, bottom, front, back, left, right, and reset views.
+FR-12 [M] The system shall allow users to select point-cloud points and add distance measurements.
+FR-13 [M] The system shall render measured segments and label the distance of each segment.
+FR-14 [M] The system shall allow the most recent measurement point to be removed with the X key.
+FR-15 [M] The system shall provide a pin tool for marking locations in the point cloud.
+FR-16 [M] The system shall reset measurement and pin state when a new point-cloud file is loaded.
+FR-17 [M] The system shall export the loaded point cloud as an uncompressed LAS file.
+FR-18 [M] The system shall preserve the source LAS coordinates and relevant coordinate VLR metadata during LAS export.
+FR-19 [M] The system shall inform the user when export is attempted without a loaded file or when the operation fails.
+FR-20 [M] The system shall allow signed-in users to authenticate through Clerk.
+FR-21 [M] The system shall allow an unauthenticated guest to enter offline mode.
+FR-22 [M] The system shall register a signed-in user's name and email with the backend.
+FR-23 [M] The system shall connect LiDAR records to named maps owned by authenticated users.
+FR-24 [M] The system shall allow authenticated users to create maps and browse map-owned LiDAR files.
+FR-25 [M] The system shall validate uploaded files as LAS or LAZ data and reject unsupported formats.
+FR-26 [M] The system shall enforce a maximum upload size and authenticate download/upload requests.
+FR-27 [M] The system shall calculate and store a SHA-256 hash for uploaded LiDAR files.
+FR-28 [M] The system shall allow users to download a stored LiDAR file into the viewer.
+FR-29 [M] The system shall support paginated loading of maps and LiDAR file listings.
+FR-30 [M] The system shall provide a plugin library sidebar with search and plugin details.
+FR-31 [M] The system shall allow users to import a plugin folder containing a valid plugin.json manifest.
+FR-32 [M] The system shall validate plugin IDs and manifest fields before installation.
+FR-33 [M] The system shall allow installed plugins to be enabled, disabled, and removed.
+FR-34 [M] The system shall persist plugin enablement state between application sessions.
+FR-35 [P] Plugins shall be able to provide custom interpretation logic for LAS and LAZ files, including specialized point attributes, coordinate handling, and classification values.
+FR-36 [P] Plugins shall be able to register an importer or decoder for a file format or LAS/LAZ data variant.
+FR-37 [P] Plugins shall be able to contribute custom point-cloud color maps and visualization modes.
+FR-38 [P] Plugins shall be able to contribute custom analysis tools and measurements that operate on parsed point data.
+FR-39 [P] Plugins shall be able to display plugin-defined results, metadata, legends, and configuration controls in the viewer.
+FR-40 [P] The plugin system shall provide a supported API and version for plugins to declare compatibility with PhotonFlight releases.
+FR-41 [P] The system shall allow plugins to be installed from and updated through a later plugin marketplace.
+FR-42 [P] The system shall provide confirmation and clear status feedback before a plugin removes or replaces existing files or settings.
+FR-43 [P] The system shall support LAZ export in addition to LAS export.
+FR-44 [P] The system shall allow users to export selected measurements, pin annotations, or analysis results separately from the point cloud.
+FR-45 [P] The system shall allow users to save and restore named camera views and annotation sessions.
+FR-46 [P] The system shall provide offline access to previously downloaded or locally cached maps and LiDAR files.
+
+NON-FUNCTIONAL REQUIREMENTS
+
+NFR-1 [M] The desktop interface shall be organized into accessible navigation, plugin, viewer, and database panels.
+NFR-2 [M] The interface shall support light and dark point-cloud themes.
+NFR-3 [M] Viewer operations shall avoid blocking the interface where possible by using Web Workers for expensive slope calculations.
+NFR-4 [M] The application shall report parsing, authentication, upload, download, and export failures without exposing raw server internals.
+NFR-5 [M] The system shall support LAS and LAZ files without corrupting the original file during local import or database download.
+NFR-6 [M] Uploaded LiDAR metadata and file data shall be isolated according to map ownership and authenticated user access.
+NFR-7 [M] Authentication tokens shall be sent over authenticated API requests rather than stored in point-cloud or plugin records.
+NFR-8 [M] Plugin IDs and filesystem paths shall be validated to prevent directory traversal and unsafe plugin installation.
+NFR-9 [M] Plugin state shall be stored separately from the source code and shall survive application updates.
+NFR-10 [M] Backend and viewer operations shall be covered by existing automated unit and end-to-end tests.
+NFR-11 [P] The point-cloud viewport shall maintain an interactive frame rate for representative survey datasets on supported desktop hardware.
+NFR-12 [P] The viewer shall support progressive loading or level-of-detail rendering for datasets that are too large for memory-safe full rendering.
+NFR-13 [P] Database uploads and downloads shall provide progress feedback and safely handle interrupted network transfers.
+NFR-14 [P] Upload, download, and plugin operations shall return actionable errors without leaving partial or inconsistent state.
+NFR-15 [P] Plugin code shall execute within a permission and resource boundary that limits access to unrelated files, network services, and system data.
+NFR-16 [P] Plugins shall have no ability to alter or access the application without using an explicitly published API.
+NFR-17 [P] Plugin crashes or interpretation errors shall be contained so they do not terminate the Electron main process or corrupt the loaded point cloud.
+NFR-18 [P] Plugin API versions shall be validated before enabling a plugin and incompatible plugins shall remain clearly identified.
+NFR-19 [P] The plugin system shall support digital signing or manifest integrity checks before distributing plugins through the marketplace.
+NFR-20 [P] The application shall log important errors and plugin lifecycle events while avoiding sensitive point data and credentials.
+NFR-21 [P] Public plugin and backend APIs shall be documented with examples and a compatibility policy.
+NFR-22 [P] The application shall retain a consistent and usable interface at supported desktop resolutions and window sizes.
+NFR-23 [P] LAS/LAZ parsing and plugin interpretation shall be deterministic for a given file, plugin version, and application version.
+NFR-24 [P] Critical operations shall preserve data integrity on cancellation, application shutdown, or unexpected failure.
+NFR-25 [P] The application shall meet basic WCAG keyboard and screen-reader requirements for navigation controls, dialogs, and plugin management.
+
+================================================================================
+USER STORIES AND USE CASES
+================================================================================
+
+Scrum format:
+As a [role], I want [capability], so that [business or user value].
+
+Acceptance criteria are included for high-priority stories and describe observable
+conditions that can be demonstrated and tested during a sprint review.
+
+US-1
+As a LiDAR analyst, I want to import a LAS or LAZ file from my device,
+so that I can analyze survey data in PhotonFlight.
+Acceptance criteria:
+- The file picker accepts LAS and LAZ files.
+- A valid file renders in the 3D viewport.
+- An invalid or unreadable file displays an actionable error.
+
+US-2
+As a LiDAR analyst, I want to switch between base, height, and slope views,
+so that I can study point-cloud position and terrain characteristics.
+Acceptance criteria:
+- Each view mode updates the visible point colors.
+- The selected mode remains active until the user changes modes or loads another file.
+
+US-3
+As a LiDAR analyst, I want to zoom and pan through a point cloud,
+so that I can inspect areas of interest at different scales.
+Acceptance criteria:
+- The viewport supports zoom and camera movement controls.
+- Reset view restores a usable overview of the loaded cloud.
+
+US-4
+As a surveyor, I want to measure distances between selected LiDAR points,
+so that I can estimate dimensions on the surveyed terrain.
+Acceptance criteria:
+- Selecting two or more points creates visible segments.
+- Each segment displays its calculated 3D distance.
+- The X key removes the most recent measurement point.
+
+US-5
+As a field technician, I want to place pins at important locations,
+so that I can identify areas that require follow-up.
+Acceptance criteria:
+- The pin tool places a pin on a point selected in the cloud.
+- Pins remain visible until the file or annotation state is cleared.
+
+US-6
+As a LiDAR analyst, I want to export the loaded point cloud as LAS,
+so that I can share a processed or viewed dataset with another application.
+Acceptance criteria:
+- A loaded point cloud can be exported to a user-selected LAS file.
+- Export success or failure is reported clearly.
+- Exporting without a loaded file produces an explanatory error.
+
+US-7
+As a signed-in researcher, I want to sign in with my existing identity,
+so that I can access my maps and stored LiDAR files.
+Acceptance criteria:
+- The Clerk sign-in flow authenticates the user.
+- The backend receives a valid session token.
+- Authentication failure leaves the application in a usable state.
+
+US-8
+As a casual user, I want to enter offline mode,
+so that I can view local LiDAR files without creating an account.
+Acceptance criteria:
+- Offline mode opens the local point-cloud viewer.
+- Account-only database features are unavailable until sign-in.
+
+US-9
+As a project manager, I want to create and select named maps,
+so that related LiDAR surveys remain organized.
+Acceptance criteria:
+- An authenticated user can create a map.
+- Maps are shown in the database browser.
+- LiDAR files are listed only for the selected map.
+
+US-10
+As an authenticated user, I want to upload LAS or LAZ files to a selected map,
+so that team members can retrieve the same survey data later.
+Acceptance criteria:
+- Only LAS or LAZ files can be uploaded.
+- Oversized or invalid files are rejected.
+- A successful upload adds the file to the selected map.
+
+US-11
+As an authenticated user, I want to download and open a stored LiDAR file,
+so that I can continue analysis in the point-cloud viewer.
+Acceptance criteria:
+- The database browser lists files owned through an accessible map.
+- A download returns the original LiDAR data.
+- The downloaded file opens in the viewer.
+
+US-12
+As a plugin user, I want to search the plugin library,
+so that I can quickly find an installed plugin.
+Acceptance criteria:
+- Search matches plugin name, author, or description.
+- An empty or unmatched search provides clear feedback.
+
+US-13
+As a plugin user, I want to import a plugin folder,
+so that I can add custom PhotonFlight functionality.
+Acceptance criteria:
+- The folder must contain a valid plugin.json manifest.
+- Invalid plugin IDs or missing required manifest fields are rejected.
+- A valid plugin appears in the plugin list after import.
+
+US-14
+As a plugin user, I want to enable, disable, or remove plugins,
+so that I control which custom features affect my session.
+Acceptance criteria:
+- Disabled plugins remain installed but are inactive.
+- Plugin state persists after application restart.
+- Removal asks for confirmation and removes the plugin data.
+
+US-15
+As a domain specialist, I want a plugin to interpret a LiDAR file using custom rules,
+so that sensor-specific attributes can be decoded and visualized correctly.
+Acceptance criteria:
+- A compatible plugin receives point-cloud file data through the plugin API.
+- The plugin can return points or interpretation metadata for the viewer.
+- Plugin interpretation failures do not corrupt the original file.
+
+US-16
+As a domain specialist, I want plugins to provide custom color modes,
+so that I can visualize relevant attributes such as vegetation, infrastructure, or returns.
+Acceptance criteria:
+- An enabled plugin can register a named visualization mode.
+- Selecting the mode applies the plugin result to the point cloud.
+- The plugin mode can be removed without affecting built-in modes.
+
+US-17
+As a domain specialist, I want plugins to provide custom analysis tools,
+so that I can perform calculations specific to my survey workflow.
+Acceptance criteria:
+- A plugin tool appears in the application tool interface.
+- The tool receives the selected point-cloud context through the supported API.
+- Plugin output is displayed or exported without modifying the source file.
+
+US-18
+As a plugin developer, I want plugin documentation and an API version,
+so that I can build and maintain plugins for supported PhotonFlight releases.
+Acceptance criteria:
+- The plugin manifest identifies compatibility and available documentation.
+- An incompatible plugin is identified as incompatible rather than enabled silently.
+- Developer-facing API documentation includes plugin lifecycle and data contracts.
+
+US-19
+As an administrator, I want plugin marketplace distribution,
+so that approved plugins can be installed, updated, and revoked consistently.
+Acceptance criteria:
+- The marketplace presents plugin metadata and compatibility.
+- Updates preserve or clearly migrate plugin state.
+- Marketplace plugins require manifest integrity or signing checks.
+
+US-20
+As a project team lead, I want exported measurements and annotations preserved,
+so that findings can be reviewed and shared with team members.
+Acceptance criteria:
+- Measurements and pins can be saved with an identifiable project or map.
+- Restoring the session restores annotations to the correct points.
+- Export or save failures leave existing data unchanged.
+
+================================================================================
+USE CASES
+================================================================================
+
+UC-1 Import and View a Local LiDAR File
+Primary actor: LiDAR analyst
+Preconditions: PhotonFlight is open and the local file is accessible.
+Main flow:
+1. The actor chooses the local file import command.
+2. The actor selects a LAS or LAZ file.
+3. PhotonFlight validates and parses the file.
+4. PhotonFlight centers, renders, and displays the point cloud.
+Postconditions: The viewer is ready for navigation, measurement, and visualization.
+Alternate flow: If parsing fails, PhotonFlight shows an error and keeps the previous viewport state.
+
+UC-2 Authenticate and Open the Database Browser
+Primary actor: Authenticated researcher
+Preconditions: Clerk authentication is available and the backend is running.
+Main flow:
+1. The actor signs in.
+2. PhotonFlight obtains a session token and registers or identifies the user.
+3. The actor opens the database browser.
+4. PhotonFlight loads the actor's accessible maps and LiDAR files.
+Postconditions: The actor can create maps, upload files, download files, or open data in the viewer.
+Alternate flow: If authentication or backend registration fails, the actor receives an error and may use offline mode.
+
+UC-3 Upload a LiDAR File to a Map
+Primary actor: Authenticated project member
+Preconditions: The actor is signed in and has selected or created a map.
+Main flow:
+1. The actor chooses a local LAS or LAZ file.
+2. The actor selects the destination map.
+3. PhotonFlight validates the file size and LAS/LAZ signature.
+4. PhotonFlight uploads the file and SHA-256 metadata.
+5. The database browser refreshes to show the uploaded file.
+Postconditions: The LiDAR file is stored and associated with the map.
+Alternate flow: If validation or upload fails, no LiDAR record is committed and the actor receives an explanation.
+
+UC-4 Measure a Feature
+Primary actor: Surveyor
+Preconditions: A point cloud is loaded and the Measure tool is active.
+Main flow:
+1. The actor points to a feature and clicks to add a point.
+2. The actor selects another point.
+3. PhotonFlight adds the segment and calculates its 3D length.
+4. The actor continues adding points or removes the last point.
+Postconditions: One or more measured segments remain visible with labels.
+Alternate flow: If no point is under the cursor, PhotonFlight does not add a measurement.
+
+UC-5 Install and Run a Custom Interpretation Plugin
+Primary actor: Domain specialist
+Preconditions: A compatible plugin folder is available and PhotonFlight is open.
+Main flow:
+1. The actor opens the plugin library.
+2. The actor imports a plugin folder.
+3. PhotonFlight validates the manifest and installs the plugin.
+4. The actor enables the plugin and selects its interpretation or visualization.
+5. PhotonFlight processes LAS/LAZ data through the plugin API.
+Postconditions: Custom interpretation data or views are available in the viewer.
+Alternate flow: If the plugin is incompatible or fails, it remains disabled or is isolated from the core viewer.

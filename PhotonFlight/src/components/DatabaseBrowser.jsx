@@ -186,16 +186,28 @@ export default function DatabaseBrowser({ currentFile, onLoadFile }) {
   };
 
   const uploadCurrentFile = async () => {
-    if (!currentFile?.bytes || !selectedMapId) return;
+    if (!currentFile || !selectedMapId) return;
 
     setUploading(true);
     setError(null);
     try {
+      let bytes = currentFile.bytes;
+      if (bytes == null && currentFile.path) {
+        if (typeof window.electronAPI?.readFile !== 'function') {
+          throw new Error('Local file access is unavailable.');
+        }
+        bytes = await window.electronAPI.readFile(currentFile.path);
+      }
+      if (bytes == null) {
+        throw new Error('Could not read the local file for upload.');
+      }
+
+      const fileBytes = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
       const formData = new FormData();
       formData.append('map_id', selectedMapId);
       formData.append(
         'file',
-        new Blob([currentFile.bytes]),
+        new Blob([fileBytes]),
         currentFile.name,
       );
 
@@ -314,7 +326,13 @@ export default function DatabaseBrowser({ currentFile, onLoadFile }) {
         )}
         <Button
           onClick={() => void uploadCurrentFile()}
-          disabled={!currentFile?.bytes || !selectedMapId || uploading || loading}
+          disabled={
+            (currentFile?.bytes == null
+              && !(currentFile?.path && typeof window.electronAPI?.readFile === 'function'))
+            || !selectedMapId
+            || uploading
+            || loading
+          }
         >
           {uploading ? 'Uploading…' : 'Upload current file'}
         </Button>

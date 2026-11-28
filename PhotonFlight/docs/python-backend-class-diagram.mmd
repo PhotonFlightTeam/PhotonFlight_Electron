@@ -1,0 +1,85 @@
+classDiagram
+    direction LR
+
+    class FastAPIApplication {
+        +health()
+        +database_error()
+    }
+    class Settings {
+        +database_url
+        +clerk_issuer
+        +clerk_jwks_url
+        +clerk_publishable_key
+        +configure_clerk_verification()
+    }
+    class get_settings {
+        <<cached function>>
+    }
+    class get_connection {
+        <<dependency>>
+    }
+    class AuthDependencies {
+        <<auth.py>>
+        +get_current_user_sub()
+        +get_current_user_id()
+    }
+    class EntityRouterFactory {
+        <<entity_routes.py>>
+        +make_router(path, table, key, model, owner)
+    }
+    class MapRouter
+    class DroneRouter
+    class LidarRouter {
+        +upload_lidar()
+        +download_lidar()
+    }
+    class PictureRouter
+    class AnomalyRouter
+    class UserRouter {
+        +me()
+        +create_user()
+    }
+    class Input {
+        <<Pydantic model>>
+    }
+    class DroneInput
+    class LidarInput
+    class PictureInput
+    class AnomalyInput
+    class MapCreate
+    class MapRead
+    class UserCreate
+
+    FastAPIApplication o-- MapRouter : includes
+    FastAPIApplication o-- DroneRouter : includes
+    FastAPIApplication o-- LidarRouter : includes
+    FastAPIApplication o-- PictureRouter : includes
+    FastAPIApplication o-- AnomalyRouter : includes
+    FastAPIApplication o-- UserRouter : includes
+
+    get_settings --> Settings : constructs
+    get_connection --> get_settings : receives settings
+    AuthDependencies --> get_settings : receives settings
+    AuthDependencies --> get_connection : resolves user
+    EntityRouterFactory --> AuthDependencies : protects generated routes
+    EntityRouterFactory --> get_connection : provides connection
+
+    MapRouter ..> EntityRouterFactory : creates router
+    DroneRouter ..> EntityRouterFactory : creates router
+    LidarRouter ..> EntityRouterFactory : creates router
+    PictureRouter ..> EntityRouterFactory : creates router
+    AnomalyRouter ..> EntityRouterFactory : creates router
+    UserRouter --> AuthDependencies : uses
+    UserRouter --> get_connection : uses
+
+    Input <|-- DroneInput
+    Input <|-- LidarInput
+    Input <|-- PictureInput
+    Input <|-- AnomalyInput
+    MapCreate <|-- MapRead
+    MapRouter ..> MapCreate : validates requests
+    DroneRouter ..> DroneInput : validates requests
+    LidarRouter ..> LidarInput : validates requests
+    PictureRouter ..> PictureInput : validates requests
+    AnomalyRouter ..> AnomalyInput : validates requests
+    UserRouter ..> UserCreate : validates requests

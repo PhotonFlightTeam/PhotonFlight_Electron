@@ -1,0 +1,101 @@
+classDiagram
+    direction LR
+
+    class Renderer
+    class ClerkProvider
+    class PointCloudThemeProvider {
+        +mode
+        +setMode(mode)
+    }
+    class OAuth {
+        +registerUser()
+        +guestClick()
+    }
+    class LasViewer {
+        +loadFile(file)
+        +exportPointCloud()
+    }
+    class PointCloudViewer {
+        +parseLasFile()
+        +buildBufferGeometry()
+    }
+    class Navigation
+    class ToolBar
+    class ViewControls
+    class ViewCube
+    class MeasureTool
+    class PinTool
+    class DatabaseBrowser
+    class PluginLibrary {
+        +usePlugins()
+    }
+    class PluginSidebar
+    class PluginDetails
+    class State {
+        <<Zustand store>>
+        +positions
+        +colors
+        +measures
+        +pinpoints
+        +user
+        +setPositions(positions)
+        +setAllPointCloudColors(rgb)
+    }
+    class LasExport {
+        +exportPointCloud()
+        +encodeLas()
+    }
+    class PointCloudTheme {
+        +createPointCloudTheme(mode)
+    }
+    class ColorCircle {
+        +colorCircle()
+    }
+    class ColorSquare {
+        +colorSquare()
+    }
+    class HeightMap {
+        +applyHeightMapColor()
+    }
+    class SlopeMap {
+        +calculateSlopeMapColors()
+        +applySlopeMapColor()
+    }
+    class SlopeWorker {
+        +calculateSlopeMap()
+    }
+
+    Renderer --> ClerkProvider : wraps
+    Renderer --> PointCloudThemeProvider : wraps
+    PointCloudThemeProvider --> OAuth : renders
+    OAuth --> LasViewer : renders
+
+    LasViewer *-- PointCloudViewer
+    LasViewer *-- Navigation
+    LasViewer *-- ToolBar
+    LasViewer *-- ViewControls
+    LasViewer *-- MeasureTool
+    LasViewer *-- PinTool
+    LasViewer *-- DatabaseBrowser
+    LasViewer *-- PluginLibrary
+    LasViewer --> LasExport : exports
+    PluginLibrary --> PluginSidebar : renders
+    PluginLibrary --> PluginDetails : renders
+    ViewControls --> ViewCube : renders
+
+    OAuth --> State : stores user
+    LasViewer --> State : reads and updates
+    PointCloudViewer --> State : stores point data and colors
+    Navigation --> State : reads control mode
+    MeasureTool --> State : stores measurements
+    PinTool --> State : stores pins
+    ColorCircle --> State : updates colors
+    ColorSquare --> State : updates colors
+    HeightMap --> State : updates colors
+    SlopeMap --> State : updates colors
+
+    PointCloudThemeProvider --> PointCloudTheme : creates
+    PointCloudViewer --> PointCloudTheme : reads mode
+    PointCloudViewer --> HeightMap : applies height colors
+    PointCloudViewer --> SlopeMap : applies slope colors
+    SlopeWorker --> SlopeMap : calls color calculation

@@ -184,6 +184,39 @@ describe('DatabaseBrowser', () => {
     });
   });
 
+  it('reads a locally imported file by path before uploading it', async () => {
+    const fileBytes = new Uint8Array([0x4c, 0x41, 0x53, 0x46]);
+    window.electronAPI.readFile = vi.fn().mockResolvedValue(fileBytes);
+    fetch.mockImplementation(async (url, options = {}) => {
+      if (String(url).endsWith('/api/lidar/upload')) {
+        return { ok: true, json: async () => ({ lidar_id: 15 }) };
+      }
+      if (String(url).includes('/api/maps')) {
+        return { ok: true, json: async () => userMaps };
+      }
+      return { ok: true, json: async () => lidarFiles };
+    });
+    render(
+      <DatabaseBrowser
+        currentFile={{ name: 'local.las', path: 'C:\\surveys\\local.las' }}
+        onLoadFile={vi.fn()}
+      />,
+    );
+
+    act(() => openDatabaseBrowser());
+    const uploadButton = await screen.findByRole('button', { name: 'Upload current file' });
+    await waitFor(() => expect(uploadButton).toBeEnabled());
+    fireEvent.click(uploadButton);
+
+    await waitFor(() => {
+      expect(window.electronAPI.readFile).toHaveBeenCalledWith('C:\\surveys\\local.las');
+      const uploadCall = fetch.mock.calls.find(([url]) => String(url).endsWith('/api/lidar/upload'));
+      expect(uploadCall).toBeDefined();
+      expect(uploadCall[1].body.get('file').name).toBe('local.las');
+      expect(uploadCall[1].body.get('file').size).toBe(fileBytes.byteLength);
+    });
+  });
+
   it('downloads a selected file and sends its bytes to the viewer', async () => {
     const downloadedBytes = new ArrayBuffer(4);
     const onLoadFile = vi.fn();
